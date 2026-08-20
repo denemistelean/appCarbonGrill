@@ -1,0 +1,10 @@
+.kds-card {
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  border: 2px solid transparent;
+  min-height: 160px;
+}
+
+.kds-pendiente { background: #fff3cd; border-color: #ffc107; }
+.kds-en_preparacion { background: #cfe2ff; border-color: #0d6efd; }
+.kds-listo { background: #d1e7dd; border-color: #198754; }

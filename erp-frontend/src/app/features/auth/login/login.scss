@@ -1,0 +1,28 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--erp-bg);
+  padding: 1.5rem;
+}
+
+.login-wrapper {
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--fs-sm);
+  color: var(--erp-text-muted);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--erp-primary);
+  }
+}

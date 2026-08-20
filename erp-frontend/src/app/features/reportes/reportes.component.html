@@ -1,0 +1,404 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-bar-chart-line"></i></span>
+                    Reportes
+                </h5>
+                <span class="text-muted-erp text-xs-erp">
+                    Totales agrupados y por local: ventas, stock, carta, comprobantes. Cada sucursal factura con su RUC.
+                </span>
+            </div>
+            @if (tab() !== 'impresion' && perms.hasPermission('exportar_reporte')) {
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-soft-neutral" (click)="exportar('excel')">Excel</button>
+                    <button type="button" class="btn btn-sm btn-soft-neutral" (click)="exportar('pdf')">PDF</button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <app-erp-tabs [tabs]="tabs()" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    <div class="card-pro mb-3 p-3">
+        <form [formGroup]="filtros" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Sucursal</label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" placeholder="Todas" appendTo="body"
+                           [searchable]="true" [clearable]="!sucursalBloqueada()"
+                           notFoundText="Sin resultados">
+                </ng-select>
+            </div>
+            @if (tab() !== 'impresion') {
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" formControlName="fecha_desde">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" formControlName="fecha_hasta">
+                </div>
+            } @else {
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <ng-select class="ng-select-sm" [items]="estadosCola" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="estado" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+            }
+            <div class="col-md-3">
+                <button type="button" class="btn btn-primary w-100" (click)="filtrar()">FILTRAR</button>
+            </div>
+        </form>
+    </div>
+
+    @if (loading()) {
+        <div class="card-pro p-3 text-center py-5 text-muted-erp">
+            <span class="spinner-border spinner-border-sm me-2"></span> Cargando...
+        </div>
+    }
+
+    @if (!loading() && tab() === 'consolidado' && consolidado(); as c) {
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Ventas totales</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ c.agrupado?.ventas | number:'1.2-2' }}</div>
+                    <small class="text-muted-erp">{{ c.agrupado?.pedidos || 0 }} pedidos</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Valor stock (insumos)</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ c.agrupado?.valor_stock | number:'1.2-2' }}</div>
+                    <small class="text-muted-erp">{{ c.agrupado?.alertas_stock || 0 }} bajo mínimo</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Carta / catálogo</div>
+                    <div class="fs-5 fw-bold text-erp">{{ c.agrupado?.productos_carta || 0 }}</div>
+                    <small class="text-muted-erp">{{ c.catalogo?.productos || 0 }} productos · {{ c.catalogo?.insumos || 0 }} insumos</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Comprobantes</div>
+                    <div class="fs-5 fw-bold text-erp">{{ (c.agrupado?.boletas || 0) + (c.agrupado?.facturas || 0) }}</div>
+                    <small class="text-muted-erp">{{ c.agrupado?.boletas || 0 }} boletas · {{ c.agrupado?.facturas || 0 }} facturas</small>
+                </div>
+            </div>
+        </div>
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="text-uppercase text-muted table-header-erp">
+                        <tr>
+                            <th>Sucursal</th>
+                            <th>RUC</th>
+                            <th class="text-end">Ventas</th>
+                            <th class="text-end">Pedidos</th>
+                            <th class="text-end">Boletas</th>
+                            <th class="text-end">Facturas</th>
+                            <th class="text-end">Stock S/</th>
+                            <th class="text-end">Alertas</th>
+                            <th class="text-end">Carta</th>
+                            <th class="text-end">Mesas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (r of c.por_sucursal; track r.id_sucursal) {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-erp">{{ r.nombre }}</div>
+                                    <small class="text-muted-erp">{{ r.codigo }} · {{ r.tipo }}</small>
+                                </td>
+                                <td>{{ r.ruc || '—' }}</td>
+                                <td class="text-end fw-bold">S/ {{ r.ventas | number:'1.2-2' }}</td>
+                                <td class="text-end">{{ r.pedidos }}</td>
+                                <td class="text-end">{{ r.boletas }}</td>
+                                <td class="text-end">{{ r.facturas }}</td>
+                                <td class="text-end">S/ {{ r.valor_stock | number:'1.2-2' }}</td>
+                                <td class="text-end">{{ r.alertas_stock }}</td>
+                                <td class="text-end">{{ r.productos_carta }}</td>
+                                <td class="text-end">{{ r.mesas_ocupadas }} / {{ r.mesas }}</td>
+                            </tr>
+                        }
+                        <tr class="fw-bold">
+                            <td colspan="2">TOTAL AGRUPADO</td>
+                            <td class="text-end">S/ {{ c.agrupado?.ventas | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ c.agrupado?.pedidos }}</td>
+                            <td class="text-end">{{ c.agrupado?.boletas }}</td>
+                            <td class="text-end">{{ c.agrupado?.facturas }}</td>
+                            <td class="text-end">S/ {{ c.agrupado?.valor_stock | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ c.agrupado?.alertas_stock }}</td>
+                            <td class="text-end">{{ c.agrupado?.productos_carta }}</td>
+                            <td class="text-end">{{ c.agrupado?.mesas_ocupadas }} / {{ c.agrupado?.mesas }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (!loading() && tab() === 'ventas' && ventas(); as v) {
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Ventas</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ v.resumen?.total | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Ticket promedio</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ v.resumen?.ticket_promedio | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Pedidos cobrados</div>
+                    <div class="fs-5 fw-bold text-erp">{{ v.resumen?.pedidos || 0 }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Cobros</div>
+                    <div class="fs-5 fw-bold text-erp">{{ v.resumen?.cobros || 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card-pro table-pro-container p-0 p-md-3">
+                    <app-table-pro titulo="Por día" [hideSearch]="true" [showAddBtn]="false"
+                        [data]="v.por_dia || []" [meta]="{ total: (v.por_dia || []).length, page: 1, limit: 999 }">
+                        <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                            <tr>
+                                <th class="ps-3 fw-bold border-0">FECHA</th>
+                                <th class="fw-bold border-0">COBROS</th>
+                                <th class="fw-bold border-0">PEDIDOS</th>
+                                <th class="fw-bold border-0 text-end">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody tbody>
+                            @for (r of v.por_dia || []; track r.fecha) {
+                                <tr>
+                                    <td class="ps-3">{{ r.fecha | date:'shortDate' }}</td>
+                                    <td>{{ r.cobros }}</td>
+                                    <td>{{ r.pedidos }}</td>
+                                    <td class="text-end">S/ {{ r.total | number:'1.2-2' }}</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </app-table-pro>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Por medio</h6>
+                    @for (m of v.por_medio || []; track m.medio) {
+                        <div class="d-flex justify-content-between py-1 border-bottom-dashed-erp">
+                            <span>{{ m.medio }}</span>
+                            <strong>S/ {{ m.total | number:'1.2-2' }}</strong>
+                        </div>
+                    } @empty {
+                        <div class="text-muted-erp">Sin cobros en el período.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!loading() && tab() === 'platos') {
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Platos más vendidos" [hideSearch]="true" [showAddBtn]="false"
+                [data]="platos()" [meta]="{ total: platos().length, page: 1, limit: 999 }">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">PLATO</th>
+                        <th class="fw-bold border-0">UNIDADES</th>
+                        <th class="fw-bold border-0 text-end">VENTA</th>
+                        <th class="fw-bold border-0 text-end">COSTO</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (r of platos(); track r.id_producto) {
+                        <tr>
+                            <td class="ps-3">{{ r.nombre }}</td>
+                            <td>{{ r.unidades | number:'1.0-2' }}</td>
+                            <td class="text-end">S/ {{ r.venta | number:'1.2-2' }}</td>
+                            <td class="text-end">S/ {{ r.costo | number:'1.2-2' }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (!loading() && tab() === 'rentabilidad' && rentabilidad(); as r) {
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Venta</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ r.resumen?.venta | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Costo snapshot</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ r.resumen?.costo | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Margen</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ r.resumen?.margen | number:'1.2-2' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Por plato" [hideSearch]="true" [showAddBtn]="false"
+                [data]="r.data || []" [meta]="{ total: (r.data || []).length, page: 1, limit: 999 }">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">PLATO</th>
+                        <th class="fw-bold border-0">UNIDADES</th>
+                        <th class="fw-bold border-0 text-end">VENTA</th>
+                        <th class="fw-bold border-0 text-end">COSTO</th>
+                        <th class="fw-bold border-0 text-end">MARGEN</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (row of r.data || []; track row.id_producto) {
+                        <tr>
+                            <td class="ps-3">{{ row.nombre }}</td>
+                            <td>{{ row.unidades | number:'1.0-2' }}</td>
+                            <td class="text-end">S/ {{ row.venta | number:'1.2-2' }}</td>
+                            <td class="text-end">S/ {{ row.costo | number:'1.2-2' }}</td>
+                            <td class="text-end">S/ {{ row.margen | number:'1.2-2' }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (!loading() && tab() === 'mermas' && mermas(); as m) {
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Costo de mermas</div>
+                    <div class="fs-5 fw-bold text-erp">S/ {{ m.resumen?.costo | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Registros</div>
+                    <div class="fs-5 fw-bold text-erp">{{ m.resumen?.n || 0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Por motivo" [hideSearch]="true" [showAddBtn]="false"
+                [data]="m.por_motivo || []" [meta]="{ total: (m.por_motivo || []).length, page: 1, limit: 999 }">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">MOTIVO</th>
+                        <th class="fw-bold border-0">N</th>
+                        <th class="fw-bold border-0">CANTIDAD</th>
+                        <th class="fw-bold border-0 text-end">COSTO</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (row of m.por_motivo || []; track row.motivo) {
+                        <tr>
+                            <td class="ps-3">{{ row.motivo }}</td>
+                            <td>{{ row.n }}</td>
+                            <td>{{ row.cantidad | number:'1.0-4' }}</td>
+                            <td class="text-end">S/ {{ row.costo | number:'1.2-2' }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (!loading() && tab() === 'ocupacion' && ocupacion(); as o) {
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Ocupación actual</div>
+                    <div class="fs-5 fw-bold text-erp">{{ o.mesas_ahora?.ocupadas || 0 }} / {{ o.mesas_ahora?.total || 0 }}</div>
+                    <div class="text-muted-erp text-xs-erp">{{ o.mesas_ahora?.pct | number:'1.0-1' }}%</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Tiempo de atención</div>
+                    <div class="fs-5 fw-bold text-erp">{{ o.tiempos?.minutos_promedio || 0 }} min</div>
+                    <div class="text-muted-erp text-xs-erp">{{ o.tiempos?.n || 0 }} pedidos pagados</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card-pro p-3">
+                    <div class="text-muted-erp text-xs-erp">Rango</div>
+                    <div class="fs-6 fw-bold text-erp">{{ o.tiempos?.minutos_min || 0 }} – {{ o.tiempos?.minutos_max || 0 }} min</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-pro p-3">
+            <h6 class="fw-bold text-erp">Mesas ahora</h6>
+            @for (row of o.mesas_ahora?.por_estado || []; track row.estado) {
+                <div class="d-flex justify-content-between py-1 border-bottom-dashed-erp">
+                    <span>{{ row.estado }}</span>
+                    <strong>{{ row.n }}</strong>
+                </div>
+            }
+        </div>
+    }
+
+    @if (tab() === 'impresion') {
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Cola ESC/POS 80 mm" subtitulo="Descargue el .bin o márquelo impreso tras enviarlo a la térmica."
+                [hideSearch]="true" [showAddBtn]="false" [loading]="colaLoading()" [data]="cola()" [meta]="colaMeta()"
+                (pageChange)="cargarCola($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">TICKET</th>
+                        <th class="fw-bold border-0">ESTADO</th>
+                        <th class="fw-bold border-0">INTENTOS</th>
+                        <th class="text-center border-0"></th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (row of cola(); track row.id_cola) {
+                        <tr>
+                            <td class="ps-3">
+                                <strong>{{ row.tipo }}</strong> {{ row.titulo }}
+                                <div class="text-muted-erp text-xs-erp">{{ row.sucursal }} · {{ row.fecha_cola | date:'short' }}</div>
+                            </td>
+                            <td>
+                                <span class="badge-erp">{{ row.estado }}</span>
+                                @if (row.ultimo_error) {
+                                    <div class="text-muted-erp text-xs-erp">{{ row.ultimo_error }}</div>
+                                }
+                            </td>
+                            <td>{{ row.intentos }}</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-link" (click)="descargarBin(row)">.bin</button>
+                                @if (perms.hasPermission('reintentar_impresion')) {
+                                    <button type="button" class="btn btn-sm btn-link" (click)="reintentar(row)">Reintentar</button>
+                                    <button type="button" class="btn btn-sm btn-link" (click)="marcarImpreso(row)">Impreso</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>

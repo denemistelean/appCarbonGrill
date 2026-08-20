@@ -1,0 +1,353 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'mapa') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="filtrosMapa" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Seleccione sucursal" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Zona</label>
+                    <ng-select class="ng-select-sm" [items]="zonas()" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="zona" placeholder="Todas las zonas" appendTo="body"
+                               [searchable]="false" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary flex-grow-1" (click)="onSucursalMapa()">VER MAPA</button>
+                        @if (perms.hasPermission('actualizar_mesa') && idSucursal()) {
+                            <button type="button" class="btn flex-shrink-0"
+                                    [class.btn-warning]="organizar()"
+                                    [class.btn-soft-neutral]="!organizar()"
+                                    (click)="toggleOrganizar()"
+                                    [title]="organizar() ? 'Terminar de mover mesas' : 'Mover mesas en el mapa'">
+                                <i class="bi" [class.bi-arrows-move]="!organizar()" [class.bi-check-lg]="organizar()"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </form>
+            <div class="d-flex flex-wrap gap-3 mt-3 pt-2 border-top-dashed-erp">
+                @for (e of estados(); track e.codigo) {
+                    <span class="text-xs-erp text-muted-erp d-inline-flex align-items-center gap-1">
+                        <span class="leyenda-item mesa-{{ e.codigo.toLowerCase() }}"></span> {{ e.etiqueta }}
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div class="card-pro p-3 mb-3 position-relative">
+            @if (mapaLoading()) {
+                <div class="text-center py-5 text-muted-erp">Cargando mapa...</div>
+            } @else if (!idSucursal()) {
+                <div class="text-center py-5 text-muted-erp">Seleccione una sucursal para ver el salón.</div>
+            } @else {
+            @if (organizar()) {
+                <div class="alert alert-warning py-2 px-3 mb-3 text-xs-erp">
+                    Arrastra cada mesa a su lugar. Al soltar se guarda la posición. Pulsa el check para salir.
+                </div>
+            }
+            @else {
+                <p class="text-muted-erp text-xs-erp mb-3">
+                    Toque una mesa para cambiar estado, unirla o mostrar el QR.
+                    @if (perms.hasPermission('actualizar_mesa')) {
+                        Usa el botón de flechas para moverlas a libre disposición.
+                    }
+                </p>
+            }
+                <div class="mesa-mapa" [class.organizando]="organizar()">
+                    <div class="mesa-mapa-canvas" #mapaCanvas>
+                    @for (mesa of mapa(); track mesa.id_mesa) {
+                        <button type="button" class="mesa-card text-start" [ngClass]="claseEstado(mesa.estado)"
+                                [class.dragging]="arrastrandoId() === mesa.id_mesa"
+                                [style.left.%]="mesa.pos_x" [style.top.%]="mesa.pos_y"
+                                (pointerdown)="onMesaPointerDown($event, mesa)"
+                                (click)="onMesaClick(mesa, modalMesa)">
+                            <div class="fw-bold">{{ mesa.numero }}</div>
+                            <small>{{ etiquetaEstado(mesa.estado) }}</small>
+                            <div class="text-xs-erp mt-1">{{ mesa.capacidad_total || mesa.capacidad }} pers.</div>
+                            @if (mesa.hijas > 0) {
+                                <div class="badge bg-dark mt-1">+{{ mesa.hijas }}</div>
+                            }
+                            @if (mesa.llamados_pendientes > 0) {
+                                <div class="badge bg-danger mt-1"><i class="bi bi-bell-fill"></i> {{ mesa.llamados_pendientes }}</div>
+                            }
+                            @if (mesa.prepedido_qr > 0) {
+                                <div class="badge bg-warning text-dark mt-1">QR</div>
+                            }
+                        </button>
+                    } @empty {
+                        <div class="text-center py-5 text-muted-erp w-100">No hay mesas en esta sucursal.</div>
+                    }
+                    </div>
+                </div>
+            }
+        </div>
+        <p class="text-muted-erp text-xs-erp mb-0">
+            Campana = llamado al mozo. En Mesas puede agregar o retirar mesas.
+        </p>
+        @if (llamados().length) {
+            <div class="card-pro p-3 mt-3">
+                <h6 class="fw-bold text-erp">Llamados al mozo</h6>
+                @for (l of llamados(); track l.id_llamado) {
+                    <div class="d-flex justify-content-between align-items-center border-bottom-dashed-erp py-2">
+                        <div>
+                            <strong>Mesa {{ l.mesa }}</strong> · {{ l.motivo }}
+                            @if (l.detalle) { <div class="text-muted-erp text-xs-erp">{{ l.detalle }}</div> }
+                        </div>
+                        @if (perms.hasPermission('atender_llamado')) {
+                            <button type="button" class="btn btn-sm btn-primary" (click)="atenderLlamado(l)">Atender</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @if (tab() === 'mesas') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="filtrosMapa" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Seleccione sucursal" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()" notFoundText="Sin resultados"
+                               (change)="onSucursalListado()">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-soft-neutral w-100" (click)="cargarListado()">Actualizar</button>
+                </div>
+            </form>
+        </div>
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Mesas del salón" subtitulo="Alta y edición de mesas por sucursal" btnText="NUEVA MESA"
+                [showAddBtn]="perms.hasPermission('crear_mesa')" [loading]="listadoLoading()"
+                [data]="listado()" [meta]="listadoMeta()"
+                (add)="abrirFormMesa(modalFormMesa)" (pageChange)="cambiarPaginaListado($event)"
+                (search)="onBuscarListado($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">Nº</th>
+                        <th class="fw-bold border-0">SUCURSAL</th>
+                        <th class="fw-bold border-0">ZONA</th>
+                        <th class="fw-bold border-0 text-center">CAP.</th>
+                        <th class="fw-bold border-0">ESTADO</th>
+                        <th class="fw-bold border-0">UNIÓN</th>
+                        <th class="text-center border-0" style="width: 100px;">ACC.</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of listado(); track item.id_mesa) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3 fw-bold text-primary-erp">{{ item.numero }}</td>
+                            <td>{{ item.sucursal }}</td>
+                            <td>{{ etiquetaZona(item.zona) }}</td>
+                            <td class="text-center">{{ item.capacidad }}</td>
+                            <td><span class="badge-erp badge-secondary">{{ etiquetaEstado(item.estado) }}</span></td>
+                            <td class="text-muted-erp">{{ item.mesa_padre_numero ? '+' + item.mesa_padre_numero : '—' }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    @if (perms.hasPermission('actualizar_mesa')) {
+                                        <button type="button" class="btn-action-edit" title="Editar" (click)="abrirFormMesa(modalFormMesa, item)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    }
+                                    @if (perms.hasPermission('eliminar_mesa')) {
+                                        <button type="button" class="btn-action-delete" title="Eliminar" (click)="eliminarMesa(item.id_mesa)">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="7" class="text-center py-5 text-muted-erp">No hay mesas registradas.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'uniones') {
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Historial de uniones" subtitulo="Mesas unidas o separadas" [hideSearch]="true" [showAddBtn]="false"
+                [loading]="unionesLoading()" [data]="uniones()" [meta]="unionesMeta()" (pageChange)="cambiarPaginaUniones($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">FECHA</th>
+                        <th class="fw-bold border-0">ACCIÓN</th>
+                        <th class="fw-bold border-0">PRINCIPAL</th>
+                        <th class="fw-bold border-0">SECUNDARIA</th>
+                        <th class="fw-bold border-0">USUARIO</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of uniones(); track item.id_union) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3">{{ item.fecha_registro | date:'short' }}</td>
+                            <td><span class="badge-erp" [class.badge-success]="item.accion === 'UNIR'" [class.badge-secondary]="item.accion === 'SEPARAR'">{{ item.accion }}</span></td>
+                            <td class="fw-bold">{{ item.mesa_principal }}</td>
+                            <td>{{ item.mesa_secundaria }}</td>
+                            <td>{{ item.usuario }}</td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="5" class="text-center py-5 text-muted-erp">Sin registros de unión.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>
+
+<ng-template #modalMesa let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-grid-3x3-gap"></i></div>
+            Mesa {{ mesaSeleccionada()?.numero }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        @if (mesaSeleccionada(); as m) {
+            <div class="mb-3">
+                <div class="text-muted-erp text-xs-erp">Capacidad total</div>
+                <div class="fw-bold text-erp">{{ m.capacidad }} @if (m.mesas_unidas?.length) { + {{ mesasUnidasLabel() }} }</div>
+            </div>
+            @if (perms.hasPermission('actualizar_mesa') && m.estado !== 'LIMPIEZA') {
+                <form [formGroup]="mesaModalForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Estado</label>
+                        <ng-select class="ng-select-sm" [items]="estados()" bindLabel="etiqueta" bindValue="codigo"
+                                   formControlName="estado" appendTo="body" [clearable]="false">
+                        </ng-select>
+                        <app-form-error [control]="mesaModalForm.get('estado')"></app-form-error>
+                    </div>
+                    @if (!m.mesa_padre_id && !m.mesas_unidas?.length) {
+                        <div class="col-md-6">
+                            <label class="form-label">Unir con (opcional)</label>
+                            <ng-select class="ng-select-sm" [items]="mesasParaUnir()" bindLabel="numero" bindValue="id_mesa"
+                                       formControlName="id_mesas_unir" appendTo="body" [multiple]="true"
+                                       placeholder="Mesas libres..." [clearable]="true">
+                            </ng-select>
+                        </div>
+                    }
+                </form>
+            }
+            @if (perms.hasPermission('actualizar_mesa') && m.estado === 'LIMPIEZA') {
+                <p class="text-muted-erp text-xs-erp mb-0">La mesa está en limpieza. Cuando esté lista, libérela para un nuevo cliente.</p>
+            }
+        }
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-between gap-2 flex-wrap">
+        <div>
+            @if (mesaSeleccionada()?.mesas_unidas?.length || mesaSeleccionada()?.mesa_padre_id) {
+                @if (perms.hasPermission('actualizar_mesa')) {
+                    <button type="button" class="btn btn-soft-neutral" (click)="separarMesa(modal)">
+                        <i class="bi bi-link-break me-1"></i> SEPARAR
+                    </button>
+                }
+            }
+            @if (perms.hasPermission('actualizar_mesa') && mesaSeleccionada()?.estado === 'LIMPIEZA') {
+                <button type="button" class="btn btn-primary" (click)="liberarMesa(modal)">
+                    <i class="bi bi-check2-circle me-1"></i> MESA LISTA
+                </button>
+            }
+            @if (perms.hasPermission('ver_pedido') && mesaSeleccionada()?.id_mesa) {
+                <a class="btn btn-soft-neutral" [routerLink]="['/comandero']" [queryParams]="{ mesa: mesaSeleccionada().id_mesa }" (click)="modal.dismiss()">
+                    <i class="bi bi-journal-check me-1"></i> TOMAR PEDIDO
+                </a>
+            }
+            @if (perms.hasPermission('ver_qr_mesa') && mesaSeleccionada()?.id_mesa) {
+                <button type="button" class="btn btn-soft-neutral" (click)="mostrarQr(modalQr)">
+                    <i class="bi bi-qr-code me-1"></i> QR CARTA
+                </button>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CERRAR</button>
+            @if (perms.hasPermission('actualizar_mesa')) {
+                <button type="button" class="btn btn-primary" (click)="guardarEstadoMesa(modal)">GUARDAR</button>
+            }
+        </div>
+    </div>
+</ng-template>
+
+<ng-template #modalFormMesa let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-table"></i></div>
+            {{ crud.editingId() ? 'Editar mesa' : 'Nueva mesa' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="formMesa" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Sucursal <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" appendTo="body" [searchable]="true" [clearable]="!sucursalBloqueada()">
+                </ng-select>
+                <app-form-error [control]="formMesa.get('id_sucursal')"></app-form-error>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Número <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="numero">
+                <app-form-error [control]="formMesa.get('numero')"></app-form-error>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-control" formControlName="nombre">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Capacidad</label>
+                <input type="number" min="1" max="20" class="form-control" formControlName="capacidad">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Zona</label>
+                <ng-select class="ng-select-sm" [items]="zonas()" bindLabel="etiqueta" bindValue="codigo"
+                           formControlName="zona" appendTo="body" [clearable]="false">
+                </ng-select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Pos X (%)</label>
+                <input type="number" min="0" max="100" class="form-control" formControlName="pos_x">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Pos Y (%)</label>
+                <input type="number" min="0" max="100" class="form-control" formControlName="pos_y">
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarMesa()">GUARDAR</button>
+    </div>
+</ng-template>
+
+<ng-template #modalQr>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">QR carta · Mesa {{ qrData()?.numero }}</h5>
+        <button type="button" class="btn-close shadow-none" (click)="cerrarQr()"></button>
+    </div>
+    <div class="modal-body p-4 text-center">
+        @if (qrData(); as q) {
+            <img [src]="q.qr_png" alt="QR de mesa" class="img-fluid" style="max-width: 280px;">
+            <div class="text-muted-erp text-xs-erp mt-2">El cliente abre la carta en su celular. Un token por apertura.</div>
+            <div class="small mt-2 user-select-all">{{ q.url }}</div>
+        }
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-between gap-2 flex-wrap">
+        @if (perms.hasPermission('gestionar_sesion_qr') && mesaSeleccionada()?.id_mesa) {
+            <button type="button" class="btn btn-soft-neutral" (click)="cerrarSesionQr()">Cerrar sesión QR</button>
+        }
+        <button type="button" class="btn btn-primary" (click)="cerrarQr()">CERRAR</button>
+    </div>
+</ng-template>
+

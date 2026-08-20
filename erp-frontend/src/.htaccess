@@ -1,0 +1,33 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. IGNORAR RUTAS DE LA API — no tocar nada que empiece con /api
+  RewriteCond %{REQUEST_URI} ^/api [NC]
+  RewriteRule ^ - [L]
+
+  # 2. REGLAS PARA ANGULAR / FRONTEND
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# index.html SIEMPRE debe revalidarse contra el servidor — nunca debe quedar
+# cacheado en el navegador, porque referencia los nombres con hash de la build
+# actual. Si el navegador lo cachea, sigue viendo una build vieja aunque haya
+# un despliegue nuevo (no se arregla ni reiniciando la PC, solo limpiando caché).
+<IfModule mod_headers.c>
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+
+  # JS/CSS/fuentes con hash en el nombre (main-XXXX.js, chunk-XXXX.js,
+  # styles-XXXX.css) son seguros de cachear agresivamente: si el contenido
+  # cambia, el nombre del archivo también cambia.
+  <FilesMatch "\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>

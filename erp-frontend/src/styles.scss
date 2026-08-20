@@ -1,0 +1,2031 @@
+/* --- 1. IMPORTACIONES --- */
+@use "bootstrap/scss/bootstrap" as *;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "bootstrap-icons/font/bootstrap-icons.css";
+@import "@ng-select/ng-select/themes/default.theme.css";
+
+/* --- 2. VARIABLES GLOBALES (:root) --- */
+:root {
+    color-scheme: light;
+
+    /* 📏 SISTEMA TIPOGRÁFICO */
+    --fs-xl: 1.4rem;
+    --fs-title-lg: 1.15rem;
+    --fs-title-md: 0.9rem;
+    --fs-body: 0.75rem;
+    --fs-btn: 0.75rem;
+    --fs-badge: 0.65rem;
+    --fs-xs: 0.6rem;
+    /* Escala de énfasis grande (montos de dashboard, íconos de estado vacío) — mismos valores que Bootstrap fs-1..fs-6, para no alterar tamaños existentes */
+    --fs-display-1: calc(1.375rem + 1.5vw);
+    --fs-display-2: calc(1.325rem + 0.9vw);
+    --fs-display-3: calc(1.3rem + 0.6vw);
+    --fs-display-4: calc(1.275rem + 0.3vw);
+    --fs-display-5: 1.25rem;
+    --fs-display-6: 1rem;
+    --fw-heavy: 800;
+    --fw-bold: 700;
+    --fw-medium: 600;
+
+    /* 📐 DIMENSIONES Y RADIOS */
+    --erp-max-width: 1600px;
+    --erp-section-pad: 1.25rem;
+    --h-base: 36px;
+    --h-lg: 40px;
+    --rad-sm: 6px;
+    --rad-md: 8px;
+    --rad-lg: 12px;
+    --rad-xl: 16px;
+    --rad-pill: 50px;
+
+    /* 🧊 GLASSMORPHISM (controlado por LayoutService) */
+    --erp-glass-blur: 0px;
+
+    /* ⏱️ TRANSICIONES */
+    --trans-base: all 0.3s ease;
+    --trans-bounce: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* 🎨 COLORES NEUTRALES */
+    --erp-bg: #F4F7FA; 
+    --erp-card: #FFFFFF;
+    --erp-border-soft: #E2E8F0; 
+    --erp-border-input: #CBD5E1;
+    --erp-text: #0F172A; 
+    --erp-text-muted: #64748B;
+
+    /* 🖌️ TEMAS Y SEMÁNTICA (El tema controlará esto dinámicamente) */
+    --erp-primary: #0277BD;
+    --erp-primary-rgb: 2, 119, 189;
+    --erp-secondary: #0E7490;
+    --erp-secondary-rgb: 14, 116, 144;
+    --erp-tertiary: #075985;
+    --erp-tertiary-rgb: 7, 89, 133;
+    --erp-quaternary: #1E293B;
+    --erp-quaternary-rgb: 30, 41, 59;
+
+    --erp-danger: #DC2626;
+    --erp-danger-rgb: 220, 38, 38;
+    --erp-success: #15803D;
+    --erp-success-rgb: 21, 128, 61;
+    --erp-warning: #B45309;
+    --erp-warning-rgb: 180, 83, 9;
+
+    /* 🖤 SIDEBAR (fallback oscuro hasta que LayoutService inyecte los valores) */
+    --erp-sidebar-top: #1a2e4a;
+    --erp-sidebar-bottom: #0c1a2e;
+
+    /* 🌫️ SOMBRAS Y FONDOS ESPECIALES */
+    --erp-shadow-rgb: 15, 23, 42;
+    --erp-overlay-bg: rgba(var(--erp-shadow-rgb), 0.4);
+    --erp-input-bg: rgba(255, 255, 255, 0.9);
+    --erp-glass-bg: rgba(255, 255, 255, 0.85);
+    --erp-inner-panel-bg: rgba(248, 250, 252, 0.7);
+    --erp-dropdown-bg: rgba(255, 255, 255, 0.98);
+    --erp-btn-soft-bg: rgba(var(--erp-primary-rgb), 0.08);
+    --erp-table-row-bg: rgba(var(--erp-primary-rgb), 0.018);
+    --erp-table-row-hover: rgba(var(--erp-primary-rgb), 0.06);
+}
+
+/* --- 🌑 MODO OSCURO GLOBAL --- */
+body.dark-mode {
+    color-scheme: dark;
+    --erp-bg: #080E1C;
+    --erp-card: #0F1A2E;
+    --erp-border-soft: #1A2540;
+    --erp-border-input: #2A3A55;
+    --erp-text: #F0F4FC;
+    --erp-text-muted: #8899BB;
+    --erp-primary: #00B8FF;
+    --erp-primary-rgb: 0, 184, 255;
+    --erp-secondary: #00E5FF;
+    --erp-secondary-rgb: 0, 229, 255;
+    --erp-tertiary: #0090FF;
+    --erp-tertiary-rgb: 0, 144, 255;
+    --erp-success: #00E676;
+    --erp-success-rgb: 0, 230, 118;
+    --erp-warning: #FFD600;
+    --erp-warning-rgb: 255, 214, 0;
+    --erp-danger: #FF1744;
+    --erp-danger-rgb: 255, 23, 68;
+    --erp-shadow-rgb: 0, 0, 0;
+    --erp-overlay-bg: rgba(var(--erp-shadow-rgb), 0.75);
+    --erp-input-bg: #0C1428;
+    --erp-glass-bg: rgba(15, 26, 46, 0.88);
+    --erp-inner-panel-bg: rgba(8, 14, 28, 0.5);
+    --erp-dropdown-bg: #111E35;
+    --erp-btn-soft-bg: rgba(var(--erp-primary-rgb), 0.14);
+    --erp-table-row-bg: rgba(var(--erp-primary-rgb), 0.04);
+    --erp-table-row-hover: rgba(var(--erp-primary-rgb), 0.09);
+}
+
+body.dark-mode .form-label {
+    color: #B8CCEC !important;
+    opacity: 1;
+}
+
+/* Clases Bootstrap — dark mode safety net (usar siempre las clases -erp en código nuevo) */
+body.dark-mode .text-primary   { color: var(--erp-primary) !important; }
+body.dark-mode .text-success   { color: var(--erp-success) !important; }
+body.dark-mode .text-danger    { color: var(--erp-danger) !important; }
+body.dark-mode .text-warning   { color: var(--erp-warning) !important; }
+body.dark-mode .text-info      { color: var(--erp-secondary) !important; }
+body.dark-mode .text-secondary { color: var(--erp-text-muted) !important; }
+body.dark-mode .text-muted     { color: var(--erp-text-muted) !important; }
+body.dark-mode .bg-success { background-color: rgba(var(--erp-success-rgb), 0.15) !important; color: var(--erp-success) !important; }
+body.dark-mode .bg-danger  { background-color: rgba(var(--erp-danger-rgb), 0.15) !important; color: var(--erp-danger) !important; }
+body.dark-mode .bg-warning { background-color: rgba(var(--erp-warning-rgb), 0.15) !important; color: var(--erp-warning) !important; }
+body.dark-mode .bg-primary { background-color: rgba(var(--erp-primary-rgb), 0.15) !important; color: var(--erp-primary) !important; }
+
+body.dark-mode .btn-excel { 
+    color: color-mix(in srgb, var(--erp-success) 80%, white); 
+    border-color: rgba(var(--erp-success-rgb), 0.4); 
+    background: rgba(var(--erp-success-rgb), 0.15); 
+}
+
+body.dark-mode .btn-pdf { 
+    color: color-mix(in srgb, var(--erp-danger) 80%, white); 
+    border-color: rgba(var(--erp-danger-rgb), 0.4); 
+    background: rgba(var(--erp-danger-rgb), 0.15); 
+}
+
+body.dark-mode .btn-action-edit {
+    color: var(--erp-primary);
+    border: 1px solid rgba(var(--erp-primary-rgb), 0.4) !important;
+    background: rgba(var(--erp-primary-rgb), 0.15);
+}
+
+body.dark-mode .btn-action-delete {
+    color: color-mix(in srgb, var(--erp-danger) 80%, white);
+    border: 1px solid rgba(var(--erp-danger-rgb), 0.4) !important;
+    background: rgba(var(--erp-danger-rgb), 0.15);
+}
+
+body.dark-mode .btn-action-view {
+    color: var(--erp-secondary);
+    border: 1px solid rgba(var(--erp-secondary-rgb), 0.4) !important;
+    background: rgba(var(--erp-secondary-rgb), 0.15);
+}
+
+body.dark-mode .btn-action-duplicate {
+    color: var(--erp-success);
+    border: 1px solid rgba(var(--erp-success-rgb), 0.4) !important;
+    background: rgba(var(--erp-success-rgb), 0.15);
+}
+
+/* --- 3. ESTRUCTURA Y UTILIDADES --- */
+html, body { 
+    width: 100%; 
+    height: 100%; 
+    margin: 0; 
+    padding: 0; 
+}
+
+body { 
+    font-family: 'Inter', sans-serif; 
+    color: var(--erp-text); 
+    font-size: var(--fs-body); 
+    -webkit-font-smoothing: antialiased; 
+    background-color: var(--erp-bg); 
+    transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+/* Textos ERP — tamaños */
+.text-xs-erp         { font-size: var(--fs-xs) !important; }
+.text-badge-erp      { font-size: var(--fs-badge) !important; }
+.text-body-erp   { font-size: var(--fs-body) !important; }
+.fs-md-erp   { font-size: var(--fs-title-md) !important; }
+.text-xl-erp         { font-size: var(--fs-xl) !important; }
+.text-07-erp         { font-size: 0.7rem !important; }
+
+/* Textos/íconos ERP — énfasis grande (reemplaza fs-1..fs-6 de Bootstrap) */
+.fs-1-erp { font-size: var(--fs-display-1) !important; }
+.fs-2-erp { font-size: var(--fs-display-2) !important; }
+.fs-3-erp { font-size: var(--fs-display-3) !important; }
+.fs-4-erp { font-size: var(--fs-display-4) !important; }
+.fs-5-erp { font-size: var(--fs-display-5) !important; }
+.fs-6-erp { font-size: var(--fs-display-6) !important; }
+
+/* Textos ERP — tamaño + estilo */
+.text-xs-spaced-erp       { font-size: var(--fs-xs) !important; letter-spacing: .05em; }
+.text-xs-upper-erp        { font-size: var(--fs-xs) !important; text-transform: uppercase; }
+.text-xs-upper-spaced-erp { font-size: var(--fs-xs) !important; text-transform: uppercase; letter-spacing: .05em; }
+.text-xs-muted-erp        { font-size: var(--fs-xs) !important; color: var(--erp-text-muted) !important; }
+.text-xs-muted-spaced-erp { font-size: var(--fs-xs) !important; color: var(--erp-text-muted) !important; letter-spacing: .05em; }
+.text-body-muted-erp      { font-size: var(--fs-body) !important; color: var(--erp-text-muted) !important; }
+.fs-md-muted-erp  { font-size: var(--fs-title-md) !important; color: var(--erp-text-muted) !important; }
+.text-title-md-erp    { font-size: var(--fs-title-md) !important; color: var(--erp-text) !important; }
+
+/* Textos ERP — colores */
+.text-primary-erp   { color: var(--erp-primary) !important; }
+.text-secondary-erp { color: var(--erp-secondary) !important; }
+.text-tertiary-erp  { color: var(--erp-tertiary) !important; }
+.text-success-erp   { color: var(--erp-success) !important; }
+.text-danger-erp    { color: var(--erp-danger) !important; }
+.text-warning-erp   { color: var(--erp-warning) !important; }
+.text-erp           { color: var(--erp-text) !important; }
+.text-muted-erp     { color: var(--erp-text-muted) !important; }
+
+/* Estado vacío */
+.erp-empty-icon { font-size: 2rem !important; color: var(--erp-primary) !important; opacity: .5; }
+
+/* Tabla transparente (anula fondo Bootstrap) */
+.table-transparent-erp { --bs-table-bg: transparent; --bs-table-hover-bg: transparent; }
+
+/* Fondos y Bordes ERP */
+.bg-erp { background-color: var(--erp-bg) !important; }
+.bg-primary-erp { background-color: var(--erp-primary) !important; }
+.bg-danger-erp { 
+    background-color: var(--erp-danger) !important; 
+    color: white !important; 
+    border: 2px solid var(--erp-card) !important; 
+    font-size: 0.65rem !important; 
+}
+.bg-success-erp-solid { background-color: var(--erp-success) !important; }
+.bg-danger-erp-solid  { background-color: var(--erp-danger)  !important; }
+.bg-warning-erp-solid { background-color: var(--erp-warning) !important; }
+.bg-success-soft-erp  { background-color: rgba(var(--erp-success-rgb), 0.1)  !important; }
+.bg-warning-soft-erp  { background-color: rgba(var(--erp-warning-rgb), 0.25) !important; }
+.bg-danger-soft-erp   { background-color: rgba(var(--erp-danger-rgb),  0.1)  !important; }
+.border-primary-erp   { border-color: var(--erp-primary)   !important; }
+.border-success-erp   { border-color: var(--erp-success)   !important; }
+.border-danger-erp    { border-color: var(--erp-danger)    !important; }
+.border-warning-erp   { border-color: var(--erp-warning)   !important; }
+.border-secondary-erp { border-color: var(--erp-secondary) !important; }
+
+/* Contenedor de página estándar */
+.form-wrapper { max-width: var(--erp-max-width); }
+
+/* Utilidades Varias */
+.cursor-pointer-erp { cursor: pointer !important; }
+.font-numeric-erp { font-variant-numeric: tabular-nums; }
+.req-star {
+    color: var(--erp-danger) !important;
+    font-weight: var(--fw-heavy);
+    margin-left: 3px;
+}
+
+/* Clases base faltantes */
+.bg-card   { background-color: var(--erp-card) !important; }
+.text-main { color: var(--erp-text) !important; }
+
+/* Firefox scrollbar (complemento al WebKit de sección 3.5) */
+.custom-scroll { scrollbar-width: thin; scrollbar-color: var(--erp-border-input) transparent; }
+body.dark-mode .custom-scroll { scrollbar-color: rgba(var(--erp-primary-rgb), 0.22) transparent; }
+
+/* --- 3.5. SCROLLBAR PERSONALIZADO --- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--erp-border-input);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--erp-text-muted); }
+body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(var(--erp-primary-rgb), 0.22); }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: rgba(var(--erp-primary-rgb), 0.5); }
+
+/* --- 4. SISTEMA DE BOTONES GLOBALES --- */
+@keyframes rotateBorder { 
+    0% { transform: translate(-50%, -50%) rotate(0deg); } 
+    100% { transform: translate(-50%, -50%) rotate(360deg); } 
+}
+
+.btn { 
+    font-size: var(--fs-btn) !important; 
+    font-weight: var(--fw-bold) !important;
+    border-radius: var(--rad-md) !important; 
+    padding: 0 1.25rem; 
+    height: var(--h-lg); 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px;
+    transition: var(--trans-bounce); 
+    position: relative; 
+    overflow: hidden !important; 
+    z-index: 1;
+} 
+
+/* Jerarquía Principal */
+.btn-primary { 
+    color: var(--erp-primary) !important; 
+    background-color: transparent !important; 
+    border: none !important;
+    
+    &::before { 
+        content: ''; 
+        position: absolute; 
+        top: 50%; 
+        left: 50%; 
+        width: 150%; 
+        height: 300%; 
+        background: conic-gradient(transparent, transparent, color-mix(in srgb, var(--erp-primary) 60%, white), var(--erp-primary)); 
+        animation: rotateBorder 2.5s linear infinite; 
+        z-index: -2; 
+    }
+    
+    &::after { 
+        content: ''; 
+        position: absolute; 
+        inset: 2px; 
+        background: linear-gradient(var(--erp-card), var(--erp-card)); 
+        border-radius: calc(var(--rad-md) - 2px); 
+        z-index: -1; 
+        transition: var(--trans-base); 
+    }
+    
+    &:hover:not(:disabled) { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 15px rgba(var(--erp-primary-rgb), 0.2); 
+        &::after { 
+            background: linear-gradient(rgba(var(--erp-primary-rgb), 0.08), rgba(var(--erp-primary-rgb), 0.08)), var(--erp-card); 
+        } 
+    }
+    
+    &:disabled { 
+        color: var(--erp-text-muted) !important; 
+        opacity: 0.8; 
+        &::before { 
+            background: conic-gradient(transparent, transparent, var(--erp-border-input), var(--erp-text-muted)); 
+            animation: rotateBorder 4s linear infinite; 
+        } 
+    }
+}
+
+.btn-outline-primary-erp { 
+    color: var(--erp-primary) !important; 
+    background-color: transparent !important; 
+    border: 1px solid var(--erp-primary) !important; 
+}
+
+.btn-outline-primary-erp:hover:not(:disabled) {
+    background-color: rgba(var(--erp-primary-rgb), 0.15) !important;
+    color: var(--erp-primary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--erp-primary-rgb), 0.3);
+}
+
+/* Soft Buttons (Rellenos ligeros) */
+.btn-soft-primary { 
+    color: var(--erp-primary) !important; 
+    background-color: rgba(var(--erp-primary-rgb), 0.1) !important; 
+    border: 1px solid rgba(var(--erp-primary-rgb), 0.25) !important; 
+}
+
+.btn-soft-primary:hover:not(:disabled), .btn-soft-primary.active {
+    background-color: rgba(var(--erp-primary-rgb), 0.2) !important;
+    border-color: var(--erp-primary) !important;
+    color: var(--erp-primary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-primary-rgb), 0.3);
+}
+
+.btn-soft-secondary { 
+    color: var(--erp-secondary) !important; 
+    background-color: rgba(var(--erp-secondary-rgb), 0.1) !important; 
+    border: 1px solid rgba(var(--erp-secondary-rgb), 0.25) !important; 
+}
+
+.btn-soft-secondary:hover:not(:disabled) {
+    background-color: rgba(var(--erp-secondary-rgb), 0.2) !important;
+    border-color: var(--erp-secondary) !important;
+    color: var(--erp-secondary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-secondary-rgb), 0.3);
+}
+
+.btn-soft-tertiary { 
+    color: var(--erp-tertiary) !important; 
+    background-color: rgba(var(--erp-tertiary-rgb), 0.1) !important; 
+    border: 1px solid rgba(var(--erp-tertiary-rgb), 0.25) !important; 
+}
+
+.btn-soft-tertiary:hover:not(:disabled) {
+    background-color: rgba(var(--erp-tertiary-rgb), 0.2) !important;
+    border-color: var(--erp-tertiary) !important;
+    color: var(--erp-tertiary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-tertiary-rgb), 0.3);
+}
+
+.btn-soft-danger {
+    color: var(--erp-danger) !important;
+    background-color: rgba(var(--erp-danger-rgb), 0.18) !important;
+    border: 1px solid rgba(var(--erp-danger-rgb), 0.4) !important;
+}
+
+.btn-soft-danger:hover:not(:disabled) {
+    background-color: rgba(var(--erp-danger-rgb), 0.2) !important;
+    border-color: var(--erp-danger) !important;
+    color: var(--erp-danger) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-danger-rgb), 0.3);
+}
+
+.btn-soft-neutral {
+    color: var(--erp-text-muted) !important;
+    background-color: transparent !important; 
+    border: 1px solid var(--erp-border-input) !important; 
+}
+
+.btn-soft-neutral:hover:not(:disabled) { 
+    background-color: rgba(100, 116, 139, 0.15) !important; 
+    color: var(--erp-text) !important; 
+    border-color: var(--erp-text-muted) !important; 
+    transform: translateY(-2px); 
+}
+
+/* Botones Exportación */
+.btn-excel { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-weight: 600; 
+    font-size: var(--fs-btn); 
+    border-radius: var(--rad-md); 
+    padding: 0 1rem; 
+    height: var(--h-base); 
+    transition: var(--trans-bounce); 
+    background: rgba(var(--erp-success-rgb), 0.1); 
+    color: var(--erp-success); 
+    border: 1px solid rgba(var(--erp-success-rgb), 0.25); 
+}
+
+.btn-excel:hover {
+    background: rgba(var(--erp-success-rgb), 0.2);
+    border-color: var(--erp-success);
+    color: var(--erp-success);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-success-rgb), 0.3);
+}
+
+.btn-pdf { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-weight: 600; 
+    font-size: var(--fs-btn); 
+    border-radius: var(--rad-md); 
+    padding: 0 1rem; 
+    height: var(--h-base); 
+    transition: var(--trans-bounce); 
+    background: rgba(var(--erp-danger-rgb), 0.1); 
+    color: var(--erp-danger); 
+    border: 1px solid rgba(var(--erp-danger-rgb), 0.25); 
+}
+
+.btn-pdf:hover {
+    background: rgba(var(--erp-danger-rgb), 0.2);
+    border-color: var(--erp-danger);
+    color: var(--erp-danger);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(var(--erp-danger-rgb), 0.3);
+}
+
+/* Botones Acciones Tabla */
+.btn-action-edit, .btn-action-delete, .btn-action-duplicate, .btn-action-view {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--rad-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    border: none !important;
+    cursor: pointer;
+    transition: var(--trans-bounce);
+}
+
+.btn-action-edit { 
+    background: rgba(var(--erp-primary-rgb), 0.15); 
+    color: var(--erp-primary); 
+}
+
+.btn-action-edit:hover {
+    background: rgba(var(--erp-primary-rgb), 0.3);
+    color: var(--erp-primary);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(var(--erp-primary-rgb), 0.3);
+}
+
+.btn-action-delete { 
+    background: rgba(var(--erp-danger-rgb), 0.15); 
+    color: var(--erp-danger); 
+}
+
+.btn-action-delete:hover {
+    background: rgba(var(--erp-danger-rgb), 0.3);
+    color: var(--erp-danger);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(var(--erp-danger-rgb), 0.3);
+}
+
+.btn-action-duplicate {
+    background: rgba(var(--erp-success-rgb), 0.15);
+    color: var(--erp-success);
+}
+
+.btn-action-duplicate:hover {
+    background: rgba(var(--erp-success-rgb), 0.3);
+    color: var(--erp-success);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(var(--erp-success-rgb), 0.3);
+}
+
+.btn-action-view {
+    background: rgba(var(--erp-secondary-rgb), 0.15);
+    color: var(--erp-secondary);
+}
+
+.btn-action-view:hover {
+    background: rgba(var(--erp-secondary-rgb), 0.3);
+    color: var(--erp-secondary);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(var(--erp-secondary-rgb), 0.3);
+}
+
+.row-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* --- 5. TARJETAS, ESTRUCTURA Y FORMULARIOS --- */
+.card-pro {
+    background: var(--erp-card);
+    border: 1px solid var(--erp-border-soft) !important;
+    border-top: 2px solid rgba(var(--erp-primary-rgb), 0.45) !important;
+    border-radius: var(--rad-lg) !important;
+    box-shadow: 0 2px 12px rgba(var(--erp-shadow-rgb), 0.06) !important;
+    transition: box-shadow 0.25s ease, border-top-color 0.25s ease;
+}
+.card-pro:hover {
+    border-top-color: rgba(var(--erp-primary-rgb), 0.85) !important;
+    box-shadow: 0 4px 20px rgba(var(--erp-shadow-rgb), 0.09) !important;
+}
+body.dark-mode .card-pro {
+    background: var(--erp-card);
+    border: 1px solid rgba(var(--erp-primary-rgb), 0.13) !important;
+    border-top: 2px solid rgba(var(--erp-primary-rgb), 0.55) !important;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+body.dark-mode .card-pro:hover {
+    border-color: rgba(var(--erp-primary-rgb), 0.28) !important;
+    border-top-color: rgba(var(--erp-primary-rgb), 0.9) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.card-header-pro { 
+    padding: var(--erp-section-pad); 
+    display: flex; 
+    flex-wrap: wrap; 
+    align-items: center; 
+    justify-content: space-between; 
+    gap: 1rem; 
+    border-bottom: 1px solid var(--erp-border-soft); 
+}
+
+.header-actions { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 0.5rem; 
+    align-items: center; 
+}
+
+.card-body-pro { 
+    padding: var(--erp-section-pad); 
+}
+
+.inner-panel {
+    background-color: var(--erp-inner-panel-bg);
+    border: 1px dashed var(--erp-border-input) !important;
+    border-radius: var(--rad-md);
+    padding: var(--erp-section-pad);
+    transition: var(--trans-base);
+}
+
+.inner-panel-title {
+    font-size: var(--fs-badge);
+    font-weight: var(--fw-heavy);
+    color: var(--erp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.form-label { 
+    font-size: var(--fs-badge) !important; 
+    font-weight: var(--fw-bold) !important; 
+    color: var(--erp-text-muted) !important; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+} 
+
+.form-control, .form-select {
+    background-color: var(--erp-input-bg) !important;
+    border: 1px solid var(--erp-border-input) !important;
+    border-radius: var(--rad-md) !important;
+    font-size: var(--fs-body) !important;
+    color: var(--erp-text) !important;
+    height: var(--h-base) !important;
+    transition: var(--trans-base);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--erp-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--erp-primary-rgb), 0.18) !important;
+    outline: none !important;
+}
+
+.ng-select.ng-select-focused .ng-select-container {
+    border-color: var(--erp-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--erp-primary-rgb), 0.18) !important;
+}
+
+.input-group-text {
+    background-color: var(--erp-input-bg) !important;
+    border-color: var(--erp-border-input) !important;
+    color: var(--erp-text-muted) !important;
+}
+
+::placeholder { 
+    color: var(--erp-text-muted) !important; 
+    opacity: 0.6 !important; 
+}
+
+/* --- 6. BADGES E ÍCONOS --- */
+.icon-badge { 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 32px; 
+    height: 32px; 
+    border-radius: var(--rad-md); 
+    background-color: rgba(var(--erp-primary-rgb), 0.12); 
+    color: var(--erp-primary); 
+    font-size: 1.1rem; 
+    box-shadow: 0 2px 4px rgba(var(--erp-primary-rgb), 0.05); 
+}
+
+.badge-erp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.35rem 0.85rem;
+    font-size: var(--fs-badge);
+    font-weight: var(--fw-heavy);
+    text-transform: uppercase;
+    border-radius: var(--rad-pill);
+    border: 1px solid transparent;
+}
+.badge-outline-erp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: .2rem .65rem;
+    font-size: var(--fs-xs);
+    font-weight: 400;
+    line-height: 1.4;
+    white-space: nowrap;
+    border-radius: var(--rad-pill);
+    border: 1px solid var(--erp-border-soft);
+    background: transparent;
+    color: var(--erp-text-muted);
+}
+
+.badge-success-erp { 
+    color: var(--erp-success); 
+    background-color: rgba(var(--erp-success-rgb), 0.1); 
+    border-color: rgba(var(--erp-success-rgb), 0.25); 
+}
+
+.badge-danger-erp { 
+    color: var(--erp-danger); 
+    background-color: rgba(var(--erp-danger-rgb), 0.1); 
+    border-color: rgba(var(--erp-danger-rgb), 0.25); 
+}
+
+.badge-secondary-erp { 
+    color: var(--erp-secondary); 
+    background-color: rgba(var(--erp-secondary-rgb), 0.1); 
+    border-color: rgba(var(--erp-secondary-rgb), 0.25); 
+}
+
+.badge-tertiary-erp {
+    color: var(--erp-tertiary);
+    background-color: rgba(var(--erp-tertiary-rgb), 0.1);
+    border-color: rgba(var(--erp-tertiary-rgb), 0.25);
+}
+
+.badge-warning-erp {
+    color: var(--erp-warning);
+    background-color: rgba(var(--erp-warning-rgb), 0.1);
+    border-color: rgba(var(--erp-warning-rgb), 0.25);
+}
+
+.badge-primary-erp {
+    color: var(--erp-primary);
+    background-color: rgba(var(--erp-primary-rgb), 0.1);
+    border-color: rgba(var(--erp-primary-rgb), 0.25);
+}
+
+.badge-info-erp {
+    color: var(--erp-secondary);
+    background-color: rgba(var(--erp-secondary-rgb), 0.1);
+    border-color: rgba(var(--erp-secondary-rgb), 0.25);
+}
+
+.badge-neutral-erp {
+    color: var(--erp-text-muted);
+    background-color: rgba(var(--erp-shadow-rgb), 0.06);
+    border-color: var(--erp-border-soft);
+}
+
+.badge-soft-neutral-erp {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--rad-sm, 4px);
+    border: 1px solid var(--erp-border-soft);
+    background-color: var(--erp-inner-panel-bg);
+    color: var(--erp-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+}
+
+/* --- 7. FIX EXTERNOS (NG-SELECT & PAGINACIÓN) --- */
+.ng-select .ng-select-container {
+    background-color: var(--erp-input-bg) !important;
+    border: 1px solid var(--erp-border-input) !important;
+    border-radius: var(--rad-md) !important;
+    height: var(--h-base) !important;
+    color: var(--erp-text) !important;
+}
+
+.ng-select.ng-select-multiple .ng-select-container {
+    height: auto !important;
+    min-height: var(--h-base) !important;
+    padding: 3px 6px !important;
+}
+
+.ng-select.ng-select-multiple .ng-value {
+    background-color: var(--erp-primary) !important;
+    color: #fff !important;
+    border-radius: var(--rad-sm, 4px) !important;
+    border: none !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+}
+
+.ng-select.ng-select-multiple .ng-value .ng-value-label {
+    padding: 2px 6px !important;
+    color: #fff !important;
+}
+
+.ng-select.ng-select-multiple .ng-value .ng-value-icon {
+    color: rgba(255,255,255,0.8) !important;
+    border-right: 1px solid rgba(255,255,255,0.25) !important;
+    padding: 2px 5px !important;
+}
+
+.ng-select.ng-select-multiple .ng-value .ng-value-icon:hover {
+    background-color: rgba(0,0,0,0.15) !important;
+    color: #fff !important;
+    border-radius: var(--rad-sm, 4px) 0 0 var(--rad-sm, 4px) !important;
+}
+
+.ng-select.ng-select-multiple .ng-placeholder {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+/* Selección de un solo valor (single-select): el texto elegido hace wrap a
+   una segunda línea en vez de truncarse con "..." cuando el combo es angosto
+   (col-lg-3/4) y el nombre es largo (proveedores, campos, empresas, etc.).
+   Aplica a TODO ng-select-single de la app — no hace falta clase ni SCSS por módulo. */
+.ng-select.ng-select-single .ng-select-container .ng-value-container {
+    height: auto !important;
+    flex-wrap: wrap !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+.ng-select.ng-select-single .ng-select-container .ng-value-container .ng-value {
+    white-space: normal !important;
+    line-height: 1.3 !important;
+    padding: 2px 0 !important;
+}
+
+.ng-select.ng-select-single .ng-select-container {
+    height: auto !important;
+    min-height: var(--h-base) !important;
+}
+
+/* Panel desplegable: permitir altura libre por opción (algunas plantillas
+   custom de ng-option-tmp tienen 2 líneas) y hacer wrap del texto largo en
+   vez de truncarlo con "...". white-space:normal SÍ se fuerza acá porque
+   se cascadea a TODOS los hijos por defecto (texto, spans del separador "|",
+   etc.) — eso es justo lo que queremos en el 100% de los casos. La única
+   excepción son los badges/chips (ver regla de abajo), que deben quedarse en
+   una sola línea con ancho fijo mientras el texto de al lado crece hacia
+   abajo — por eso ya NO hace falta envolver cada ng-option-tmp en un
+   <div style="white-space:normal"> manual; esta regla cubre toda la app. */
+.ng-dropdown-panel {
+    border-radius: var(--rad-md) !important;
+    overflow: hidden;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35) !important;
+}
+
+.ng-dropdown-panel .ng-dropdown-panel-items {
+    padding: 6px !important;
+}
+
+.ng-dropdown-panel .ng-option {
+    height: auto !important;
+    min-height: 36px;
+    border-radius: var(--rad-sm, 6px) !important;
+    margin-bottom: 2px;
+    padding: 9px 12px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+}
+
+/* Badges/chips dentro de una opción (ej: tipo de vehículo, RUC, estado):
+   se quedan en una sola línea con ancho fijo — nunca se aplastan ni se
+   parten en 2 líneas aunque el texto vecino crezca. */
+.ng-dropdown-panel .ng-option .badge,
+.ng-dropdown-panel .ng-option .badge-erp,
+.ng-dropdown-panel .ng-option [class*="badge-"] {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* Si la plantilla custom usa flex (label a la izquierda, badge a la
+   derecha), permitir que ese flex container también crezca de alto en vez
+   de recortar el badge cuando el texto wrappea a 2 líneas. */
+.ng-dropdown-panel .ng-option .d-flex {
+    flex-wrap: wrap !important;
+}
+
+/* Opciones en reposo */
+body.dark-mode .ng-dropdown-panel {
+    background-color: var(--erp-dropdown-bg) !important;
+    border: 1px solid var(--erp-border-soft) !important;
+}
+
+body.dark-mode .ng-dropdown-panel .ng-option {
+    background-color: transparent !important;
+    color: var(--erp-text) !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Opción cuando se pasa el mouse (Hover suave) */
+body.dark-mode .ng-dropdown-panel .ng-option:hover {
+    background-color: rgba(var(--erp-primary-rgb), 0.12) !important;
+    color: #ffffff !important;
+}
+
+/* Opción Marcada (Navegación con teclado o foco de búsqueda): acento sutil,
+   no relleno sólido — más elegante que un bloque de color plano */
+body.dark-mode .ng-dropdown-panel .ng-option.ng-option-marked {
+    background-color: rgba(var(--erp-primary-rgb), 0.18) !important;
+    color: #ffffff !important;
+    box-shadow: inset 3px 0 0 var(--erp-primary);
+}
+
+/* Opción Seleccionada: relleno sólido, reservado solo para la elegida */
+body.dark-mode .ng-dropdown-panel .ng-option.ng-option-selected {
+    background-color: var(--erp-primary) !important;
+    color: #ffffff !important;
+}
+
+/* Fuerza a que cualquier texto interno (small, span, div) herede el color del ng-option, excepto badges */
+.ng-dropdown-panel .ng-option *:not(.badge) {
+    color: inherit !important;
+}
+
+.ng-dropdown-panel .ng-option .badge {
+    color: #fff !important;
+}
+
+.pagination { 
+    margin-bottom: 0; 
+}
+
+.pagination .page-item .page-link { 
+    background-color: var(--erp-card) !important; 
+    border-color: var(--erp-border-soft) !important; 
+    color: var(--erp-text) !important; 
+    transition: all 0.2s ease !important; 
+}
+
+.pagination .page-item.active .page-link { 
+    background-color: var(--erp-primary) !important; 
+    border-color: var(--erp-primary) !important; 
+    color: var(--erp-card) !important; 
+    box-shadow: 0 4px 10px rgba(var(--erp-primary-rgb), 0.3) !important; 
+}
+
+.pagination .page-item.disabled .page-link { 
+    background-color: var(--erp-bg) !important; 
+    border-color: var(--erp-border-soft) !important; 
+    color: var(--erp-text-muted) !important; 
+    opacity: 0.6; 
+}
+
+.pagination .page-item .page-link:hover:not(.disabled) { 
+    background-color: rgba(var(--erp-primary-rgb), 0.1) !important; 
+    color: var(--erp-primary) !important; 
+    box-shadow: none !important; 
+    outline: none !important; 
+}
+
+/* --- 8. FIX BORDES ADAPTATIVOS (Adiós rayas blancas de Bootstrap) --- */
+.border-erp { border: 1px solid var(--erp-border-soft) !important; }
+.border-top-erp { border-top: 1px solid var(--erp-border-soft) !important; }
+.border-bottom-erp { border-bottom: 1px solid var(--erp-border-soft) !important; }
+.border-dashed-erp { border: 1px dashed var(--erp-border-soft) !important; }
+.border-bottom-dashed-erp { border-bottom: 1px dashed var(--erp-border-soft) !important; }
+.border-top-dashed-erp { border-top: 1px dashed var(--erp-border-soft) !important; }
+
+
+/* --- 9. COMPONENTES DE FACTURACIÓN REUTILIZABLES (Tamaño Compacto) --- */
+.erp-billing-box {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.75rem; 
+    border: 1px solid var(--erp-border-soft);
+    border-radius: var(--rad-md);
+    background-color: var(--erp-bg); 
+    min-width: 130px; 
+}
+
+.erp-billing-box .lbl {
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+    color: var(--erp-text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.15rem; 
+}
+
+.erp-billing-box .val {
+    font-size: var(--fs-title-lg); 
+    font-weight: var(--fw-heavy);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.erp-billing-box.primary { border-color: rgba(var(--erp-primary-rgb), 0.3); }
+.erp-billing-box.primary .val { color: var(--erp-primary); }
+
+.erp-billing-box.secondary { border-color: rgba(var(--erp-secondary-rgb), 0.3); }
+.erp-billing-box.secondary .val { color: var(--erp-secondary); }
+
+.erp-total-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--erp-border-soft);
+}
+
+body.dark-mode .erp-billing-box {
+    background-color: var(--erp-card);
+    border-color: var(--erp-border-soft);
+}
+body.dark-mode .erp-billing-box.primary { border-color: rgba(var(--erp-primary-rgb), 0.35); }
+body.dark-mode .erp-billing-box.secondary { border-color: rgba(var(--erp-secondary-rgb), 0.35); }
+
+/* --- 10. SISTEMA ESTRICTO DE TIPOGRAFÍAS ERP --- */
+/* Título de encabezado dentro de card-header-pro */
+.form-section-title {
+    font-size: var(--fs-title-lg);
+    font-weight: var(--fw-bold);
+    color: var(--erp-text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* Botón cuadrado de ícono (navbar, toolbars) */
+.btn-icon {
+    width: var(--h-lg) !important;
+    padding: 0 !important;
+    aspect-ratio: 1;
+}
+
+.erp-title-main {
+    font-size: var(--fs-xl); 
+    font-weight: var(--fw-heavy); 
+    color: var(--erp-text); 
+    margin: 0; 
+    line-height: 1.2; 
+}
+
+.erp-title-section { 
+    font-size: var(--fs-title-lg); 
+    font-weight: var(--fw-bold); 
+    color: var(--erp-text); 
+    margin: 0; 
+    display: flex; 
+    align-items: center; 
+}
+
+.erp-title-step { 
+    font-size: var(--fs-title-md); 
+    font-weight: var(--fw-bold); 
+    color: var(--erp-text); 
+    margin: 0; 
+    display: flex; 
+    align-items: center; 
+}
+
+.erp-subtitle { 
+    font-size: var(--fs-badge); 
+    font-weight: var(--fw-bold); 
+    color: var(--erp-text-muted); 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+}
+
+/* --- 11. OPTIMIZACIONES ESTRICTAS PARA MÓVILES (Smartphones) --- */
+@media (max-width: 767.98px) {
+    /* Evitar auto-zoom en iOS al tocar un input */
+    .form-control, .form-select, .ng-select .ng-select-container { 
+        font-size: 16px !important; 
+    }
+    
+    /* Reducir alturas para que entren más datos en pantalla vertical */
+    :root {
+        --h-base: 38px; 
+        --h-lg: 44px;
+        --erp-section-pad: 0.85rem; 
+    }
+
+    /* Las cajas de facturación ocuparán 100% en celular para no apretarse */
+    .erp-billing-box { 
+        width: 100%; 
+        min-width: 100%; 
+        margin-bottom: 0.5rem; 
+    }
+    
+    /* Alinear el resumen total al centro/izquierda en móvil */
+    .erp-total-row { 
+        align-items: stretch; 
+        text-align: right; 
+    }
+    
+    .erp-total-row > div { 
+        justify-content: flex-end; 
+    }
+}
+
+/* --- 12. COMPONENTES DE ÁRBOL (TREE VIEW) Y CARPETAS --- */
+.erp-tree-container {
+    background-color: var(--erp-input-bg);
+    border: 1px solid var(--erp-border-soft);
+    border-radius: var(--rad-md);
+    padding: 0.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+    transition: var(--trans-base);
+}
+
+.erp-tree-node {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--erp-border-soft);
+    color: var(--erp-text);
+    transition: var(--trans-base);
+    border-radius: var(--rad-sm);
+}
+
+.erp-tree-node:last-child {
+    border-bottom: none;
+}
+
+.erp-tree-node:hover {
+    background-color: rgba(var(--erp-primary-rgb), 0.05);
+}
+
+/* Ícono de Carpeta Estandarizado */
+.icon-folder {
+    color: var(--erp-warning); 
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+    transition: var(--trans-base);
+}
+
+/* Botón Acción Agregar */
+.btn-action-add { 
+    width: 34px; 
+    height: 34px; 
+    border-radius: var(--rad-md); 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 1rem; 
+    border: none !important; 
+    cursor: pointer; 
+    transition: var(--trans-bounce); 
+    background: rgba(var(--erp-success-rgb), 0.15); 
+    color: var(--erp-success); 
+}
+
+.btn-action-add:hover {
+    background: rgba(var(--erp-success-rgb), 0.3);
+    color: var(--erp-success);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(var(--erp-success-rgb), 0.3);
+}
+
+body.dark-mode .btn-action-add {
+    color: var(--erp-success);
+    border: 1px solid rgba(var(--erp-success-rgb), 0.4) !important;
+    background: rgba(var(--erp-success-rgb), 0.15);
+}
+
+/* --- 13. FIX MODALES NATIVOS DE BOOTSTRAP --- */
+.modal-content {
+    background-color: var(--erp-card) !important;
+    border: 1px solid var(--erp-border-soft) !important;
+    color: var(--erp-text) !important;
+    border-radius: var(--rad-lg) !important;
+    overflow: hidden;
+    backdrop-filter: blur(var(--erp-glass-blur));
+    -webkit-backdrop-filter: blur(var(--erp-glass-blur));
+}
+
+/* Bootstrap calcula sus breakpoints sobre el viewport, no sobre el ancho real
+   del modal. En tablets (iPad portrait ≈768-991px) el viewport ya cruza el
+   breakpoint `md`, pero el modal (modal-lg/xl o el tamaño default) sigue
+   siendo mucho más angosto que el viewport completo — así que un grid
+   `col-md-*` que debería apilarse no lo hace, y los ng-select/inputs quedan
+   truncados dentro de columnas demasiado angostas. Además, varios módulos
+   usan `class="col-md-4"` SIN el `col-12` base (Bootstrap solo define
+   `.col-md-*` dentro de su propio media query — sin `col-12`, en celular
+   ese div no tiene ancho explícito y queda a merced del flex-basis del
+   contenido). Forzamos cualquier `col-md-*` dentro de un modal a ocupar el
+   100% del ancho hasta `lg` (≥992px), que es donde el modal sí tiene
+   espacio real para mostrar columnas lado a lado. */
+@media (max-width: 991.98px) {
+    .modal-content [class*="col-md-"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+body.dark-mode .modal-backdrop.show { opacity: 0.78; }
+
+/* --- 13.1 TABLAS DE FORMULARIO → GRILLA DE TARJETAS EN TABLET/CELULAR ---
+   Para tablas de detalle (varias columnas con ng-select/inputs) que no
+   caben en pantallas angostas: en vez de forzar scroll horizontal, cada
+   <tr> se convierte en una tarjeta y cada <td> apila su valor con una
+   etiqueta arriba (tomada de [data-label]). Las tarjetas se acomodan en
+   una grilla con auto-fit/minmax: en tablet entran 2, 3 o 4 por fila
+   según el espacio disponible, y solo en celular (donde ni 2 entran)
+   caen a 1 por fila — sin breakpoints fijos por dispositivo. Es solo
+   CSS — el HTML/Angular del formulario no cambia, los formControlName
+   siguen funcionando igual. Aplicar la clase "table-card-mobile" a la <table>. */
+@media (max-width: 991.98px) {
+    .table-card-mobile {
+        display: block;
+
+        thead { display: none; }
+
+        tbody {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 0.75rem;
+            width: 100%;
+            align-items: start;
+        }
+
+        tfoot { display: block; width: 100%; }
+
+        tr {
+            display: block;
+            width: 100%;
+            height: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--erp-border-soft);
+            border-radius: var(--rad-md);
+            background: var(--erp-inner-panel-bg);
+        }
+
+        /* Fila de "sin resultados" (colspan completo): ocupa toda la grilla, sin estilo de tarjeta */
+        tbody tr.tr-empty-state {
+            grid-column: 1 / -1;
+            border: none;
+            background: transparent;
+            padding: 0;
+        }
+
+        tfoot tr {
+            background: transparent;
+            border: none;
+            padding: 0.5rem 0 0;
+        }
+
+        td {
+            display: block;
+            width: 100% !important;
+            border: none !important;
+            padding: 0.4rem 0 !important;
+            text-align: left !important;
+        }
+
+        td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: var(--fs-badge);
+            font-weight: var(--fw-bold);
+            color: var(--erp-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+    }
+}
+
+/* --- 14. FIX SWEETALERT2 MODO OSCURO (PROMPTS) --- */
+.swal2-popup {
+    background-color: var(--erp-card) !important;
+    color: var(--erp-text) !important;
+    border: 1px solid var(--erp-border-soft) !important;
+    border-radius: var(--rad-lg) !important;
+    font-family: 'Inter', sans-serif !important;
+    backdrop-filter: blur(var(--erp-glass-blur));
+    -webkit-backdrop-filter: blur(var(--erp-glass-blur));
+}
+
+.swal2-title {
+    color: var(--erp-text) !important;
+    font-size: var(--fs-title-lg) !important;
+}
+
+.swal2-html-container {
+    color: var(--erp-text-muted) !important;
+    font-size: var(--fs-body) !important;
+}
+
+.swal2-input {
+    background-color: var(--erp-input-bg) !important;
+    border: 1px solid var(--erp-border-input) !important;
+    color: var(--erp-text) !important;
+    border-radius: var(--rad-md) !important;
+    box-shadow: none !important;
+}
+
+.swal2-input:focus {
+    border-color: var(--erp-primary) !important;
+    box-shadow: 0 0 0 0.25rem rgba(var(--erp-primary-rgb), 0.25) !important;
+}
+
+body.dark-mode .swal2-input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.swal2-actions {
+    gap: 12px;
+}
+
+/* --- FIX: BOTÓN CERRAR (X) EN MODO OSCURO --- */
+body.dark-mode .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+    opacity: 0.7;
+}
+body.dark-mode .btn-close:hover {
+    opacity: 1;
+    filter: invert(1) grayscale(100%) brightness(250%);
+}
+
+/* --- FIX: BOOTSTRAP btn-success / btn-danger — sobreescribir con vars ERP --- */
+.btn-success {
+    background-color: rgba(var(--erp-success-rgb), 0.1) !important;
+    border-color: rgba(var(--erp-success-rgb), 0.3) !important;
+    color: var(--erp-success) !important;
+    transition: var(--trans-bounce);
+}
+.btn-success:hover:not(:disabled) {
+    background-color: rgba(var(--erp-success-rgb), 0.2) !important;
+    border-color: var(--erp-success) !important;
+    color: var(--erp-success) !important;
+    box-shadow: 0 4px 12px rgba(var(--erp-success-rgb), 0.3) !important;
+    transform: translateY(-2px);
+}
+.btn-danger {
+    background-color: var(--erp-danger) !important;
+    border-color: var(--erp-danger) !important;
+    color: #fff !important;
+    transition: var(--trans-bounce);
+}
+.btn-danger:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--erp-danger) 82%, black) !important;
+    border-color: color-mix(in srgb, var(--erp-danger) 82%, black) !important;
+    box-shadow: 0 4px 12px rgba(var(--erp-danger-rgb), 0.4) !important;
+    transform: translateY(-2px);
+}
+
+/* btn-sm — altura correcta (Bootstrap usa --h-lg por el override global de .btn) */
+.btn.btn-sm {
+    height: var(--h-base) !important;
+    padding: 0 0.85rem !important;
+}
+
+/* --- FIX DARK MODE: Sombras Bootstrap se vuelven invisibles sobre fondo oscuro --- */
+body.dark-mode .shadow-sm { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important; }
+body.dark-mode .shadow    { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important; }
+body.dark-mode .shadow-lg { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55) !important; }
+
+/* --- FIX DARK MODE: Dropdown Bootstrap (fondo blanco en dark mode) --- */
+body.dark-mode .dropdown-menu {
+    background-color: var(--erp-dropdown-bg) !important;
+    border: 1px solid var(--erp-border-soft) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+body.dark-mode .dropdown-item {
+    color: var(--erp-text) !important;
+}
+body.dark-mode .dropdown-item:hover,
+body.dark-mode .dropdown-item:focus {
+    background-color: rgba(var(--erp-primary-rgb), 0.1) !important;
+    color: var(--erp-primary) !important;
+}
+body.dark-mode .dropdown-divider {
+    border-color: var(--erp-border-soft) !important;
+}
+
+/* --- FIX DARK MODE: Clases Bootstrap hardcodeadas (bg-white, bg-light, text-dark, card) --- */
+body.dark-mode .bg-white   { background-color: var(--erp-card) !important; }
+body.dark-mode .bg-light   { background-color: rgba(var(--erp-primary-rgb), 0.04) !important; color: var(--erp-text-muted) !important; }
+body.dark-mode .text-dark,
+body.dark-mode .text-black { color: var(--erp-text) !important; }
+body.dark-mode .border     { border-color: var(--erp-border-soft) !important; }
+
+/* Bootstrap .card genérico (sin card-pro) — dark mode */
+body.dark-mode .card:not(.card-pro) {
+    background-color: var(--erp-card) !important;
+    border-color: var(--erp-border-soft) !important;
+    color: var(--erp-text) !important;
+}
+
+/* Bootstrap .list-group — dark mode */
+body.dark-mode .list-group-item {
+    background-color: var(--erp-card) !important;
+    border-color: var(--erp-border-soft) !important;
+    color: var(--erp-text) !important;
+}
+
+/* --- 15. LÍNEA DE TIEMPO (TIMELINE ERP) --- */
+.erp-timeline {
+    position: relative;
+    padding-left: 2.5rem;
+    margin-top: 0.5rem;
+}
+
+/* La línea conectora vertical */
+.erp-timeline::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    bottom: 0;
+    left: 11px;
+    width: 2px;
+    background-color: var(--erp-primary);
+    opacity: 0.8;
+}
+
+.erp-timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+/* El círculo del evento */
+.erp-timeline-marker {
+    position: absolute;
+    top: 1.25rem; 
+    left: calc(-2.5rem + 4px);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--erp-primary);
+    border: 3px solid var(--erp-card); 
+    z-index: 1;
+    transition: var(--trans-base);
+}
+
+.erp-timeline-marker.marker-success {
+    background-color: var(--erp-success);
+}
+
+/* La tarjeta del evento */
+.erp-timeline-card {
+    background: var(--erp-card);
+    border: 1px solid var(--erp-border-soft);
+    border-radius: var(--rad-md);
+    padding: 1rem 1.25rem;
+    transition: var(--trans-base);
+}
+
+/* La barra lateral del comentario (azul o verde) */
+.erp-comment-border {
+    border-left: 3px solid var(--erp-primary);
+    padding-left: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.erp-comment-border.border-success-erp {
+    border-left-color: var(--erp-success);
+}
+/* --- FIX PARA QUE EL DESPLEGABLE SIEMPRE VAYA POR ENCIMA --- */
+.ng-dropdown-panel {
+    background-color: var(--erp-dropdown-bg) !important;
+    border: 1px solid var(--erp-border-soft) !important;
+    border-radius: var(--rad-md) !important;
+    box-shadow: 0 10px 30px rgba(var(--erp-shadow-rgb), 0.2) !important;
+    backdrop-filter: blur(var(--erp-glass-blur));
+    -webkit-backdrop-filter: blur(var(--erp-glass-blur));
+    z-index: 1060 !important;
+}
+
+/* --- ACCESIBILIDAD: Focus visible con color primario del tema --- */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--erp-primary) !important;
+    outline-offset: 2px !important;
+    border-radius: var(--rad-sm);
+}
+/* --- 16. FIXES ADICIONALES (INPUT FILE, SWITCH, TABS) --- */
+
+/* 1. Fix Input File (Botón Seleccionar Archivo) - A PRUEBA DE BOOTSTRAP */
+input[type="file"].form-control::file-selector-button {
+    background-color: rgba(var(--erp-shadow-rgb), 0.05) !important;
+    color: var(--erp-text) !important;
+    border: none !important;
+    border-right: 1px solid var(--erp-border-soft) !important;
+    margin-right: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--rad-sm) 0 0 var(--rad-sm);
+    transition: all 0.2s ease-in-out;
+    font-weight: 700 !important;
+}
+
+/* Estado normal en Modo Oscuro */
+body.dark-mode input[type="file"].form-control::file-selector-button {
+    background-color: rgba(255, 255, 255, 0.08) !important; 
+    color: #ffffff !important;
+    border-right: 1px solid var(--erp-border-input) !important;
+}
+
+/* Hover Global */
+input[type="file"].form-control:hover::file-selector-button {
+    background-color: rgba(var(--erp-primary-rgb), 0.15) !important;
+    color: var(--erp-primary) !important;
+}
+
+/* Hover específico en Modo Oscuro (Para que resalte elegante) */
+body.dark-mode input[type="file"].form-control:hover::file-selector-button {
+    background-color: var(--erp-primary) !important;
+    color: #ffffff !important;
+}
+
+/* 2. Fix Switch (Toggle) */
+.form-check-input:checked {
+    background-color: var(--erp-primary) !important;
+    border-color: var(--erp-primary) !important;
+}
+body.dark-mode .form-check-input:not(:checked) {
+    background-color: var(--erp-input-bg);
+    border-color: var(--erp-border-input);
+}
+
+/* 3. Sistema Estandarizado de Tabs ERP */
+.nav-tabs.erp-tabs {
+    border-bottom: 2px solid var(--erp-border-soft);
+    gap: 0.5rem;
+}
+.nav-tabs.erp-tabs .nav-link {
+    color: var(--erp-text-muted);
+    font-weight: var(--fw-bold);
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.75rem 1.25rem;
+    transition: var(--trans-base);
+    background: transparent !important;
+}
+.nav-tabs.erp-tabs .nav-link:hover {
+    color: var(--erp-primary);
+    border-color: transparent;
+    background-color: rgba(var(--erp-primary-rgb), 0.05) !important;
+}
+.nav-tabs.erp-tabs .nav-link.active {
+    color: var(--erp-primary);
+    border-bottom: 2px solid var(--erp-primary);
+    background-color: transparent !important;
+}
+
+/* --- 17. CAJAS INFORMATIVAS COMPACTAS (Premium Alert Boxes) --- */
+.erp-alert-box {
+    position: relative;
+    padding: 0.85rem 1rem;
+    border-radius: var(--rad-md);
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 12px rgba(var(--erp-shadow-rgb), 0.03);
+    overflow: hidden;
+    transition: var(--trans-base);
+    z-index: 1;
+}
+
+/* Línea indicadora lateral */
+.erp-alert-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0; width: 3px;
+    z-index: -1;
+}
+
+.erp-alert-icon {
+    font-size: 1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.erp-alert-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 0.15rem;
+}
+
+.erp-alert-title {
+    font-size: 0.8rem;
+    font-weight: var(--fw-bold);
+    margin-bottom: 0.15rem;
+    letter-spacing: 0.2px;
+}
+
+.erp-alert-body {
+    font-size: var(--fs-body);
+    color: var(--erp-text-muted);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Elementos internos de la alerta (Listas y Acciones) */
+.erp-alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0.5rem 0;
+}
+
+.erp-alert-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--rad-sm);
+}
+
+.erp-alert-action {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--rad-pill);
+    background: transparent;
+    border: 1px solid transparent;
+    margin-top: 0.15rem;
+    cursor: pointer;
+    transition: var(--trans-base);
+}
+
+.erp-alert-action:hover {
+    transform: scale(1.02);
+}
+
+.erp-alert-action .form-check-input {
+    float: none;
+    margin-left: 0;
+    height: 1.1rem;
+    width: 2.1rem;
+    cursor: pointer;
+}
+
+/* Temas de color */
+.erp-alert-warning {
+    background-color: rgba(var(--erp-warning-rgb), 0.03);
+    border-color: rgba(var(--erp-warning-rgb), 0.1);
+}
+.erp-alert-warning::before { background-color: var(--erp-warning); }
+.erp-alert-warning .erp-alert-icon { background-color: rgba(var(--erp-warning-rgb), 0.1); color: var(--erp-warning); }
+.erp-alert-warning .erp-alert-title { color: var(--erp-warning); }
+.erp-alert-warning .erp-alert-item { background: rgba(var(--erp-warning-rgb), 0.05); border: 1px solid rgba(var(--erp-warning-rgb), 0.1); }
+.erp-alert-warning .erp-alert-action { background: rgba(var(--erp-warning-rgb), 0.1); border-color: rgba(var(--erp-warning-rgb), 0.15); }
+.erp-alert-warning .erp-alert-action:hover { background: rgba(var(--erp-warning-rgb), 0.15); }
+
+.erp-alert-info {
+    background-color: rgba(var(--erp-primary-rgb), 0.03);
+    border-color: rgba(var(--erp-primary-rgb), 0.1);
+}
+.erp-alert-info::before { background-color: var(--erp-primary); }
+.erp-alert-info .erp-alert-icon { background-color: rgba(var(--erp-primary-rgb), 0.1); color: var(--erp-primary); }
+.erp-alert-info .erp-alert-title { color: var(--erp-primary); }
+.erp-alert-info .erp-alert-item { background: rgba(var(--erp-primary-rgb), 0.05); border: 1px solid rgba(var(--erp-primary-rgb), 0.1); }
+.erp-alert-info .erp-alert-action { background: rgba(var(--erp-primary-rgb), 0.1); border-color: rgba(var(--erp-primary-rgb), 0.15); }
+.erp-alert-info .erp-alert-action:hover { background: rgba(var(--erp-primary-rgb), 0.15); }
+
+.erp-alert-danger {
+    background-color: rgba(var(--erp-danger-rgb), 0.03);
+    border-color: rgba(var(--erp-danger-rgb), 0.1);
+}
+.erp-alert-danger::before { background-color: var(--erp-danger); }
+.erp-alert-danger .erp-alert-icon { background-color: rgba(var(--erp-danger-rgb), 0.1); color: var(--erp-danger); }
+.erp-alert-danger .erp-alert-title { color: var(--erp-danger); }
+.erp-alert-danger .erp-alert-item { background: rgba(var(--erp-danger-rgb), 0.05); border: 1px solid rgba(var(--erp-danger-rgb), 0.1); }
+.erp-alert-danger .erp-alert-action { background: rgba(var(--erp-danger-rgb), 0.1); border-color: rgba(var(--erp-danger-rgb), 0.15); }
+.erp-alert-danger .erp-alert-action:hover { background: rgba(var(--erp-danger-rgb), 0.15); }
+
+.erp-alert-success {
+    background-color: rgba(var(--erp-success-rgb), 0.03);
+    border-color: rgba(var(--erp-success-rgb), 0.1);
+}
+.erp-alert-success::before { background-color: var(--erp-success); }
+.erp-alert-success .erp-alert-icon { background-color: rgba(var(--erp-success-rgb), 0.1); color: var(--erp-success); }
+.erp-alert-success .erp-alert-title { color: var(--erp-success); }
+.erp-alert-success .erp-alert-item { background: rgba(var(--erp-success-rgb), 0.05); border: 1px solid rgba(var(--erp-success-rgb), 0.1); }
+.erp-alert-success .erp-alert-action { background: rgba(var(--erp-success-rgb), 0.1); border-color: rgba(var(--erp-success-rgb), 0.15); }
+.erp-alert-success .erp-alert-action:hover { background: rgba(var(--erp-success-rgb), 0.15); }
+
+/* Alert boxes — dark mode con más visibilidad */
+body.dark-mode .erp-alert-warning { background-color: rgba(var(--erp-warning-rgb), 0.08); border-color: rgba(var(--erp-warning-rgb), 0.22); }
+body.dark-mode .erp-alert-info    { background-color: rgba(var(--erp-primary-rgb), 0.08); border-color: rgba(var(--erp-primary-rgb), 0.22); }
+body.dark-mode .erp-alert-danger  { background-color: rgba(var(--erp-danger-rgb), 0.08);  border-color: rgba(var(--erp-danger-rgb), 0.22); }
+body.dark-mode .erp-alert-success { background-color: rgba(var(--erp-success-rgb), 0.08); border-color: rgba(var(--erp-success-rgb), 0.22); }
+
+/* --- 18. NAVEGACIÓN MAESTROS (NAV-MAGIC & NAV-COMPACT) --- */
+.nav-magic {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem !important;
+
+    .magic-link {
+        cursor: pointer;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0;
+        border-radius: 12px;
+        background: var(--erp-card);
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        min-height: 70px;
+        border: 1px solid var(--erp-border-soft);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+
+        .card-content {
+            background-color: var(--erp-card);
+            border-radius: 10px;
+            position: relative;
+            z-index: 2;
+            margin: 2px;
+            width: calc(100% - 4px);
+            height: calc(100% - 4px);
+            padding: 0.8rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+
+            i { color: var(--erp-text-muted); font-size: 1.5rem; transition: color 0.3s; }
+
+            .text-content {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                line-height: 1.2;
+            }
+
+            .fw-bold {
+                color: var(--erp-text);
+                font-weight: 800;
+                font-size: 0.85rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .micro-label {
+                font-size: 0.65rem;
+                font-weight: 800;
+                color: var(--erp-primary);
+                margin-bottom: 2px;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+            }
+        }
+
+        &:hover:not(.active) {
+            transform: translateY(-3px);
+            border-color: var(--erp-primary);
+            box-shadow: 0 8px 15px -3px rgba(var(--erp-primary-rgb), 0.15);
+
+            .card-content {
+                i { color: var(--erp-primary); }
+                .fw-bold { color: var(--erp-primary); }
+            }
+        }
+
+        &.active {
+            border: none;
+            background: transparent;
+            box-shadow: 0 8px 20px -3px rgba(var(--erp-primary-rgb), 0.25);
+
+            &::before {
+                content: '';
+                position: absolute;
+                width: 200%; height: 500%;
+                top: 50%; left: 50%;
+                z-index: 1;
+                background: conic-gradient(
+                    from 0deg,
+                    transparent 0deg,
+                    transparent 90deg,
+                    var(--erp-primary) 180deg,
+                    transparent 270deg
+                );
+                animation: rotateBorder 3s linear infinite;
+            }
+
+            .card-content {
+                background-color: var(--erp-card);
+                i { color: var(--erp-primary); transform: scale(1.1); }
+                .fw-bold { color: var(--erp-primary); }
+                .micro-label { opacity: 1; }
+            }
+        }
+    }
+}
+
+.sub-nav-wrapper {
+    background-color: transparent;
+    padding: 1rem 2px 0.5rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    border-top: 1px solid var(--erp-border-soft);
+}
+
+.nav-compact {
+    display: flex;
+    gap: 0.6rem;
+
+    .nav-link {
+        border-radius: var(--rad-md);
+        padding: 0.5rem 1.2rem;
+        font-weight: var(--fw-heavy);
+        font-size: var(--fs-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--erp-text-muted);
+        background-color: var(--erp-bg);
+        border: 1px solid var(--erp-border-input);
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(var(--erp-shadow-rgb), 0.02);
+
+        &:hover {
+            transform: translateY(-2px);
+            background-color: var(--erp-card);
+            border-color: var(--erp-primary);
+            color: var(--erp-primary);
+            box-shadow: 0 4px 6px -1px rgba(var(--erp-primary-rgb), 0.1);
+        }
+
+        &.active {
+            background-color: var(--erp-primary);
+            color: #ffffff !important;
+            border-color: var(--erp-primary);
+            box-shadow: 0 4px 10px rgba(var(--erp-primary-rgb), 0.3);
+        }
+
+        &.special-tab {
+            background-color: rgba(var(--erp-success-rgb), 0.05);
+            color: var(--erp-success);
+            border-color: rgba(var(--erp-success-rgb), 0.3);
+
+            &:hover {
+                background-color: rgba(var(--erp-success-rgb), 0.1);
+                border-color: var(--erp-success);
+            }
+
+            &.active {
+                background-color: var(--erp-success);
+                color: #ffffff !important;
+                border-color: var(--erp-success);
+                box-shadow: 0 4px 10px rgba(var(--erp-success-rgb), 0.3);
+            }
+        }
+    }
+}
+
+body.dark-mode .nav-compact .nav-link.special-tab {
+    color: var(--erp-success);
+    &.active { color: #080E1C !important; }
+}
+
+.animate-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .nav-magic { flex-direction: column; gap: 0.5rem; }
+    .nav-compact { padding-bottom: 5px; }
+}
+
+/* --- 20. MÓDULO CONTROL DE ACCESO --- */
+.perm-card-magic {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+
+    &::before {
+        content: '';
+        position: absolute;
+        width: 200%; height: 300%;
+        top: 50%; left: 50%;
+        z-index: 0;
+        background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            transparent 100deg,
+            var(--card-color, var(--erp-primary)) 180deg,
+            transparent 260deg
+        );
+        animation: rotateBorder 4s linear infinite;
+    }
+}
+
+.perm-card-inner {
+    position: relative;
+    z-index: 1;
+    margin: 2px;
+    width: calc(100% - 4px);
+    flex: 1;
+    min-height: 0;
+    border-radius: 10px;
+    background: var(--erp-card);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Bootstrap table CSS vars — neutralizan el fondo blanco hardcodeado de Bootstrap */
+/* --- 21. SISTEMA DE TABLAS ERP (TABLE-PRO) --- */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--erp-text);
+    --bs-table-hover-bg: var(--erp-table-row-hover);
+    --bs-table-hover-color: var(--erp-text);
+    --bs-table-border-color: var(--erp-border-soft);
+}
+
+/* Fondo sutil para el elemento thead */
+.table-header-erp {
+    background-color: rgba(var(--erp-primary-rgb), 0.03) !important;
+}
+body.dark-mode .table-header-erp {
+    background-color: rgba(var(--erp-primary-rgb), 0.06) !important;
+}
+
+/* thead — estándar en todos los módulos */
+.table-pro-container thead th {
+    font-size: var(--fs-xs) !important;
+    font-weight: var(--fw-heavy) !important;
+    color: var(--erp-text-muted) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+    white-space: nowrap;
+    background-color: transparent !important;
+    border-bottom: 2px solid var(--erp-border-soft) !important;
+    border-top: none !important;
+}
+
+/* tbody td — texto y padding vertical consistente (horizontal lo define cada th/td con ps-4, pe-4, etc.) */
+.table-pro-container tbody td {
+    font-size: var(--fs-body) !important;
+    color: var(--erp-text) !important;
+    padding-top: 0.7rem !important;
+    padding-bottom: 0.7rem !important;
+    border-bottom: 1px solid var(--erp-border-soft) !important;
+    vertical-align: middle;
+}
+
+/* Glass row — tinte sutil + hover */
+.table-pro-container tbody tr {
+    background-color: var(--erp-table-row-bg);
+    transition: background-color 0.15s ease;
+}
+
+.table-pro-container tbody tr:hover {
+    background-color: var(--erp-table-row-hover) !important;
+}
+
+/* Última fila sin borde inferior para no duplicar con el contenedor */
+.table-pro-container tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Fila principal interactiva */
+.main-row { cursor: default; }
+.main-row[title] { cursor: pointer; }
+
+/* Animación de entrada escalonada por fila */
+@keyframes rowSlideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.fila-animada { animation: rowSlideIn 0.2s ease-out both; }
+.fila-animada:nth-child(1)  { animation-delay: 0.02s; }
+.fila-animada:nth-child(2)  { animation-delay: 0.04s; }
+.fila-animada:nth-child(3)  { animation-delay: 0.06s; }
+.fila-animada:nth-child(4)  { animation-delay: 0.08s; }
+.fila-animada:nth-child(5)  { animation-delay: 0.10s; }
+.fila-animada:nth-child(6)  { animation-delay: 0.12s; }
+.fila-animada:nth-child(7)  { animation-delay: 0.14s; }
+.fila-animada:nth-child(8)  { animation-delay: 0.16s; }
+.fila-animada:nth-child(9)  { animation-delay: 0.18s; }
+.fila-animada:nth-child(10) { animation-delay: 0.20s; }
+
+/* Fila seleccionable en tablas de selección manual (sin table-active de Bootstrap) */
+tr.fila-seleccionada {
+    background-color: rgba(var(--erp-primary-rgb), 0.12) !important;
+    outline: 1px solid rgba(var(--erp-primary-rgb), 0.35);
+    outline-offset: -1px;
+}
+tr.fila-seleccionada td { color: var(--erp-text) !important; }
+
+/* --- 20. DARK MODE — MEJORAS DE PROFUNDIDAD EN TABLAS --- */
+body.dark-mode .table-pro-container thead th {
+    border-bottom-color: var(--erp-border-input) !important;
+}
+body.dark-mode .table-pro-container tbody td {
+    border-bottom-color: rgba(var(--erp-primary-rgb), 0.07) !important;
+}
+
+/* Tooltip stock por sucursal (listado productos) */
+.tooltip-stock-sucursal .tooltip-inner {
+    white-space: pre-line;
+    text-align: left;
+    max-width: 260px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}

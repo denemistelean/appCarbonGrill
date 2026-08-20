@@ -1,0 +1,215 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+        <app-table-pro titulo="Productos y recetas" subtitulo="Carta corporativa, BOM y precio por sucursal" btnText="NUEVO PRODUCTO"
+            [showAddBtn]="perms.hasPermission('crear_producto')" [loading]="crud.tableLoading()"
+            [data]="crud.resource().data" [meta]="crud.resource().meta"
+            (add)="abrirModal(modalFormulario)" (pageChange)="crud.cambiarPagina($event)" (search)="onSearch($event)">
+
+            <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                <tr>
+                    <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                    <th class="fw-bold border-0">CÓDIGO</th>
+                    <th class="fw-bold border-0">NOMBRE</th>
+                    <th class="fw-bold border-0">CATEGORÍA</th>
+                    <th class="fw-bold border-0">ESTACIÓN</th>
+                    <th class="fw-bold border-0 text-end">PRECIO</th>
+                    <th class="fw-bold border-0 text-center">TIPO</th>
+                    <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody tbody>
+                @for (item of crud.resource().data; track item.id_producto) {
+                    <tr class="main-row align-middle fila-animada">
+                        <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_producto }}</div></td>
+                        <td class="fw-bold text-erp">{{ item.codigo }}</td>
+                        <td class="fw-bold text-erp text-uppercase">{{ item.nombre }}</td>
+                        <td class="text-muted-erp">{{ item.categoria }}</td>
+                        <td class="text-muted-erp">{{ item.estacion }}</td>
+                        <td class="text-end text-erp">{{ item.precio | number:'1.2-2' }}</td>
+                        <td class="text-center">
+                            <span class="badge-erp border-0" [class.badge-secondary]="!item.es_combo" [class.badge-success]="item.es_combo">
+                                {{ item.es_combo ? 'COMBO' : 'PLATO' }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                @if (perms.hasPermission('actualizar_producto')) {
+                                    <button type="button" class="btn-action-edit" (click)="abrirModal(modalFormulario, item)">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                }
+                                @if (perms.hasPermission('eliminar_producto')) {
+                                    <button type="button" class="btn-action-delete" (click)="crud.deleteItem(item.id_producto)">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                } @empty {
+                    <tr><td colspan="8" class="text-center py-5 text-muted-erp">No hay productos registrados.</td></tr>
+                }
+            </tbody>
+        </app-table-pro>
+    </div>
+</div>
+
+<ng-template #modalFormulario let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-journal-richtext"></i></div>
+            {{ crud.editingId() ? 'Editar producto' : 'Nuevo producto' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="form" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Código <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="codigo"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('codigo')"></app-form-error>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Nombre <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('nombre')"></app-form-error>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Categoría <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="categorias()" bindLabel="nombre" bindValue="id_categoria"
+                           formControlName="id_categoria" placeholder="Buscar..." appendTo="body"
+                           [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="form.get('id_categoria')"></app-form-error>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Precio maestro <span class="req-star">*</span></label>
+                <input type="number" class="form-control" formControlName="precio" min="0" step="0.01">
+                <small class="text-muted-erp">Precio base para todas las sucursales.</small>
+                <app-form-error [control]="form.get('precio')"></app-form-error>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="tipos" bindLabel="nombre" bindValue="id"
+                           formControlName="es_combo" appendTo="body" [searchable]="false" [clearable]="false">
+                </ng-select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Estación KDS <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="estaciones" bindLabel="nombre" bindValue="id"
+                           formControlName="estacion" appendTo="body" [searchable]="false" [clearable]="false">
+                </ng-select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Descripción</label>
+                <input type="text" class="form-control" formControlName="descripcion">
+            </div>
+
+            @if (!esCombo) {
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">Receta (insumos)</label>
+                        <button type="button" class="btn btn-soft-neutral btn-sm" (click)="agregarLineaReceta()">
+                            <i class="bi bi-plus-lg me-1"></i> INSUMO
+                        </button>
+                    </div>
+                    <div formArrayName="receta" class="d-flex flex-column gap-2">
+                        @for (linea of receta.controls; track $index) {
+                            <div class="row g-2 align-items-start" [formGroupName]="$index">
+                                <div class="col-md-7">
+                                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                               formControlName="id_insumo" placeholder="Insumo..." appendTo="body"
+                                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                                    </ng-select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control" formControlName="cantidad" min="0.0001" step="0.0001" placeholder="Cantidad">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn-action-delete" (click)="quitarLineaReceta($index)">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @if (!receta.length) {
+                        <p class="small text-muted-erp mb-0 mt-2">Sin receta (producto que no descuenta insumos, p. ej. lata de gaseosa).</p>
+                    }
+                </div>
+            } @else {
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">Ítems del combo <span class="req-star">*</span></label>
+                        <button type="button" class="btn btn-soft-neutral btn-sm" (click)="agregarLineaCombo()">
+                            <i class="bi bi-plus-lg me-1"></i> PLATO
+                        </button>
+                    </div>
+                    <div formArrayName="combo_items" class="d-flex flex-column gap-2">
+                        @for (linea of comboItems.controls; track $index) {
+                            <div class="row g-2 align-items-start" [formGroupName]="$index">
+                                <div class="col-md-7">
+                                    <ng-select class="ng-select-sm" [items]="platos()" bindLabel="etiqueta" bindValue="id_producto"
+                                               formControlName="id_producto" placeholder="Plato..." appendTo="body"
+                                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                                    </ng-select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control" formControlName="cantidad" min="0.001" step="1" placeholder="Cantidad">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn-action-delete" (click)="quitarLineaCombo($index)">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="col-12">
+                <label class="form-label">Disponibilidad y precio por sucursal</label>
+                <small class="text-muted-erp d-block mb-2">
+                    Marque <strong>Disponible</strong> para que el producto aparezca en comandero/POS de ese local.
+                    En <strong>Precio override</strong> indique un precio distinto; si lo deja vacío, se usa el precio maestro.
+                </small>
+                <div formArrayName="sucursales" class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr class="text-uppercase text-muted">
+                                <th>Sucursal</th>
+                                <th class="text-center">Disponible</th>
+                                <th>Precio override</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (s of sucursales.controls; track $index) {
+                                <tr [formGroupName]="$index">
+                                    <td>{{ s.get('nombre')?.value }}</td>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input" formControlName="disponible">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm" formControlName="precio_override"
+                                               min="0" step="0.01" placeholder="Usar precio maestro">
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardar()">
+            <i class="bi bi-save me-1"></i> GUARDAR
+        </button>
+    </div>
+</ng-template>

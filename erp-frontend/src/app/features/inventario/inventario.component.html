@@ -1,0 +1,482 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="d-flex align-items-center gap-2 mb-3 animate__animated animate__fadeIn">
+        <div class="icon-badge"><i class="bi {{ seccionTitulo().icon }}"></i></div>
+        <div>
+            <h5 class="fw-bold text-erp mb-0">{{ seccionTitulo().titulo }}</h5>
+            <small class="text-muted-erp">{{ seccionTitulo().subtitulo }}</small>
+        </div>
+    </div>
+
+    @if (tab() === 'stock') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="stockFiltros" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Todas las sucursales" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Insumo</label>
+                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                               formControlName="id_insumo" placeholder="Todos los insumos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Alerta</label>
+                    <ng-select class="ng-select-sm" [items]="filtrosMinimo" bindLabel="etiqueta" bindValue="id"
+                               formControlName="bajo_minimo" placeholder="Todos" appendTo="body"
+                               [searchable]="false" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-primary w-100" (click)="filtrarStock()">FILTRAR</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Existencias" subtitulo="Consulte stock por sucursal e insumo."
+                [hideSearch]="true" [showAddBtn]="false" [loading]="stockLoading()" [data]="stock()" [meta]="stockMeta()"
+                (pageChange)="cambiarPaginaStock($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">INSUMO</th>
+                        <th class="fw-bold border-0">SUCURSAL</th>
+                        <th class="fw-bold border-0 text-end">STOCK</th>
+                        <th class="fw-bold border-0 text-end">MÍNIMO</th>
+                        <th class="fw-bold border-0 text-end">COSTO PROM.</th>
+                        <th class="fw-bold border-0 text-center">VENCIMIENTO</th>
+                        <th class="text-center border-0" style="width: 80px;"></th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of stock(); track item.id_insumo + '-' + item.id_sucursal) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3">
+                                <div class="fw-bold text-erp text-uppercase">{{ item.insumo }}</div>
+                                <small class="text-muted-erp">{{ item.unidad_codigo }}</small>
+                            </td>
+                            <td>{{ item.sucursal }}</td>
+                            <td class="text-end fw-bold" [class.text-danger]="item.bajo_minimo == 1">{{ item.stock_actual | number:'1.2-4' }}</td>
+                            <td class="text-end">{{ item.stock_minimo | number:'1.2-4' }}</td>
+                            <td class="text-end">{{ item.costo_promedio | number:'1.2-4' }}</td>
+                            <td class="text-center">
+                                @if (item.vencido == 1) {
+                                    <span class="badge-erp badge-danger">Vencido {{ item.proximo_vto | date:'dd/MM/yyyy' }}</span>
+                                } @else if (item.proximo_vto) {
+                                    <span class="badge-erp badge-secondary">{{ item.proximo_vto | date:'dd/MM/yyyy' }}</span>
+                                } @else {
+                                    <span class="text-muted-erp">—</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (perms.hasPermission('ajustar_inventario')) {
+                                    <button type="button" class="btn-action-edit" (click)="abrirMinimo(modalMinimo, item)" title="Stock mínimo">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="7" class="text-center py-5 text-muted-erp">No hay stock registrado.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'movimientos') {
+        <div class="card-pro p-3 animate__animated animate__fadeInUp">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button type="button" class="btn" [class.btn-primary]="movimientoTipo() === 'ingreso'" [class.btn-soft-neutral]="movimientoTipo() !== 'ingreso'" (click)="setMovimientoTipo('ingreso')">Ingreso</button>
+                <button type="button" class="btn" [class.btn-primary]="movimientoTipo() === 'salida'" [class.btn-soft-neutral]="movimientoTipo() !== 'salida'" (click)="setMovimientoTipo('salida')">Salida</button>
+                <button type="button" class="btn" [class.btn-primary]="movimientoTipo() === 'ajuste'" [class.btn-soft-neutral]="movimientoTipo() !== 'ajuste'" (click)="setMovimientoTipo('ajuste')">Ajuste</button>
+            </div>
+
+            @if (movimientoTipo() === 'ingreso' && perms.hasPermission('crear_movimiento')) {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-sm" [class.btn-primary]="ingresoModo() === 'uno'" [class.btn-soft-neutral]="ingresoModo() !== 'uno'" (click)="setIngresoModo('uno')">Un ítem</button>
+                    <button type="button" class="btn btn-sm" [class.btn-primary]="ingresoModo() === 'lote'" [class.btn-soft-neutral]="ingresoModo() !== 'lote'" (click)="setIngresoModo('lote')">Varios ítems (un registro)</button>
+                </div>
+            }
+
+            @if ((movimientoTipo() !== 'ajuste' && perms.hasPermission('crear_movimiento')) || (movimientoTipo() === 'ajuste' && perms.hasPermission('ajustar_inventario'))) {
+                @if (movimientoTipo() === 'ingreso' && ingresoModo() === 'lote') {
+                    <form [formGroup]="ingresoLoteForm">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label">Sucursal <span class="req-star">*</span></label>
+                                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                                           [searchable]="true" [clearable]="!sucursalBloqueada()">
+                                </ng-select>
+                                <app-form-error [control]="ingresoLoteForm.get('id_sucursal')"></app-form-error>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Motivo</label>
+                                <input type="text" class="form-control text-uppercase" formControlName="motivo" placeholder="COMPRA">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Detalle</label>
+                                <input type="text" class="form-control" formControlName="detalle">
+                            </div>
+                        </div>
+                        <h6 class="fw-bold text-erp mb-2">Insumos del ingreso</h6>
+                        <div formArrayName="items">
+                            @for (item of ingresoLoteItems.controls; track $index; let i = $index) {
+                                <div class="row g-3 align-items-end mb-2" [formGroupName]="i">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Insumo <span class="req-star">*</span></label>
+                                        <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                                   formControlName="id_insumo" placeholder="Buscar..." appendTo="body"
+                                                   [searchable]="true" (change)="onInsumoLoteChange(i)">
+                                        </ng-select>
+                                        <app-form-error [control]="item.get('id_insumo')"></app-form-error>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Cantidad <span class="req-star">*</span></label>
+                                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Costo unit. <span class="req-star">*</span></label>
+                                        <input type="number" min="0" step="0.0001" class="form-control" formControlName="costo_unitario">
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        @if (ingresoLoteItems.length > 1) {
+                                            <button type="button" class="btn btn-soft-neutral btn-sm" (click)="quitarItemIngresoLote(i)">×</button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                            <button type="button" class="btn btn-soft-neutral" (click)="agregarItemIngresoLote()">
+                                <i class="bi bi-plus-lg me-1"></i> Agregar insumo
+                            </button>
+                            <button type="button" class="btn btn-primary" (click)="registrarIngresoLote()">
+                                <i class="bi bi-check2-circle me-1"></i> REGISTRAR TODO
+                            </button>
+                        </div>
+                    </form>
+                } @else {
+                <form [formGroup]="movimientoForm" class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">Insumo <span class="req-star">*</span></label>
+                        <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                   formControlName="id_insumo" placeholder="Buscar insumo..." appendTo="body"
+                                   [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                        </ng-select>
+                        <app-form-error [control]="movimientoForm.get('id_insumo')"></app-form-error>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sucursal <span class="req-star">*</span></label>
+                        <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                                   formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                                   [searchable]="true" [clearable]="!sucursalBloqueada()"
+                                   notFoundText="Sin resultados">
+                        </ng-select>
+                        <app-form-error [control]="movimientoForm.get('id_sucursal')"></app-form-error>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Cantidad <span class="req-star">*</span></label>
+                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                        <app-form-error [control]="movimientoForm.get('cantidad')"></app-form-error>
+                    </div>
+
+                    @if (movimientoTipo() === 'ajuste') {
+                        <div class="col-md-3">
+                            <label class="form-label">Sentido <span class="req-star">*</span></label>
+                            <ng-select class="ng-select-sm" [items]="sentidos" bindLabel="etiqueta" bindValue="id"
+                                       formControlName="sentido" placeholder="Sentido" appendTo="body"
+                                       [searchable]="false" [clearable]="false">
+                            </ng-select>
+                        </div>
+                    }
+
+                    @if (movimientoTipo() === 'ingreso' || movimientoTipo() === 'ajuste') {
+                        <div class="col-md-3">
+                            <label class="form-label">Costo unitario @if (movimientoTipo() === 'ingreso') { <span class="req-star">*</span> }</label>
+                            <input type="number" min="0" step="0.0001" class="form-control" formControlName="costo_unitario">
+                            <app-form-error [control]="movimientoForm.get('costo_unitario')"></app-form-error>
+                        </div>
+                    }
+
+                    @if (movimientoTipo() === 'ingreso') {
+                        <div class="col-md-3">
+                            <label class="form-label">Lote</label>
+                            <input type="text" class="form-control text-uppercase" formControlName="lote" placeholder="Opcional">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vencimiento</label>
+                            <input type="date" class="form-control" formControlName="fecha_vencimiento">
+                        </div>
+                    }
+
+                    <div class="col-md-4">
+                        <label class="form-label">Motivo</label>
+                        <input type="text" class="form-control text-uppercase" formControlName="motivo" placeholder="COMPRA, CONTEO...">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Detalle</label>
+                        <input type="text" class="form-control" formControlName="detalle">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="button" class="btn btn-primary" (click)="registrarMovimiento()">
+                            <i class="bi bi-check2-circle me-1"></i> REGISTRAR
+                        </button>
+                    </div>
+                </form>
+                }
+            } @else {
+                <div class="text-muted-erp">No tiene permiso para registrar este movimiento.</div>
+            }
+        </div>
+    }
+
+    @if (tab() === 'kardex') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="kardexFiltros" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Todas" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Insumo</label>
+                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                               formControlName="id_insumo" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tipo</label>
+                    <ng-select class="ng-select-sm" [items]="tiposKardex" bindLabel="etiqueta" bindValue="id"
+                               formControlName="tipo" placeholder="Todos" appendTo="body"
+                               [searchable]="false" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" formControlName="fecha_desde">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" formControlName="fecha_hasta">
+                </div>
+                <div class="col-12 text-end">
+                    <button type="button" class="btn btn-primary" (click)="filtrarKardex()">FILTRAR KARDEX</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Kardex" subtitulo="Ingreso, salida, merma y ajuste por sucursal" [hideSearch]="true" [showAddBtn]="false"
+                [loading]="kardexLoading()" [data]="kardex()" [meta]="kardexMeta()" (pageChange)="cambiarPaginaKardex($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">FECHA</th>
+                        <th class="fw-bold border-0">TIPO</th>
+                        <th class="fw-bold border-0">INSUMO</th>
+                        <th class="fw-bold border-0">SUCURSAL</th>
+                        <th class="fw-bold border-0 text-end">CANT.</th>
+                        <th class="fw-bold border-0 text-end">STOCK</th>
+                        <th class="fw-bold border-0 text-end">COSTO</th>
+                        <th class="fw-bold border-0">MOTIVO</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of kardex(); track item.id_kardex) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3">{{ item.fecha_movimiento | date:'short' }}</td>
+                            <td><span class="badge-erp badge-secondary">{{ item.tipo }}</span></td>
+                            <td>
+                                <div class="fw-bold text-erp">{{ item.insumo }}</div>
+                                <small class="text-muted-erp">{{ item.unidad_codigo }} @if (item.codigo_lote) { · {{ item.codigo_lote }} }</small>
+                            </td>
+                            <td>{{ item.sucursal }}</td>
+                            <td class="text-end fw-bold">{{ item.cantidad | number:'1.2-4' }}</td>
+                            <td class="text-end">{{ item.stock_anterior | number:'1.2-4' }} → {{ item.stock_posterior | number:'1.2-4' }}</td>
+                            <td class="text-end">{{ item.costo_total | number:'1.2-2' }}</td>
+                            <td>
+                                <div>{{ item.motivo || '—' }}</div>
+                                <small class="text-muted-erp">{{ item.usuario }}</small>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="8" class="text-center py-5 text-muted-erp">No hay movimientos.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'mermas') {
+        <div class="row g-3 mb-3">
+            @for (item of resumenMermas(); track item.motivo) {
+                <div class="col-md-4 col-lg">
+                    <div class="card-pro p-3 h-100">
+                        <div class="text-muted-erp text-xs-erp text-uppercase">{{ etiquetaMotivo(item.motivo) }}</div>
+                        <div class="fw-bold text-erp fs-5">S/ {{ item.costo_total | number:'1.2-2' }}</div>
+                        <small class="text-muted-erp">{{ item.movimientos }} mov. · {{ item.cantidad | number:'1.0-2' }} und.</small>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (perms.hasPermission('crear_merma')) {
+            <div class="card-pro p-3 mb-3">
+                <h6 class="fw-bold text-erp mb-3">Registrar merma</h6>
+                <form [formGroup]="mermaForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Insumo <span class="req-star">*</span></label>
+                        <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                   formControlName="id_insumo" placeholder="Buscar..." appendTo="body"
+                                   [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                        </ng-select>
+                        <app-form-error [control]="mermaForm.get('id_insumo')"></app-form-error>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Sucursal <span class="req-star">*</span></label>
+                        <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                                   formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                                   [searchable]="true" [clearable]="!sucursalBloqueada()"
+                                   notFoundText="Sin resultados">
+                        </ng-select>
+                        <app-form-error [control]="mermaForm.get('id_sucursal')"></app-form-error>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Cantidad <span class="req-star">*</span></label>
+                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                        <app-form-error [control]="mermaForm.get('cantidad')"></app-form-error>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Motivo <span class="req-star">*</span></label>
+                        <ng-select class="ng-select-sm" [items]="motivos()" bindLabel="etiqueta" bindValue="codigo"
+                                   formControlName="motivo" placeholder="Motivo" appendTo="body"
+                                   [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                        </ng-select>
+                        <app-form-error [control]="mermaForm.get('motivo')"></app-form-error>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Lote (opcional)</label>
+                        <ng-select class="ng-select-sm" [items]="lotes()" bindLabel="codigo_lote" bindValue="id_lote"
+                                   formControlName="id_lote" placeholder="Sin lote" appendTo="body"
+                                   [searchable]="true" [clearable]="true" notFoundText="Sin lotes">
+                            <ng-template ng-option-tmp let-item="item">
+                                {{ item.codigo_lote }} · {{ item.cantidad_actual }} @if (item.fecha_vencimiento) { · vto {{ item.fecha_vencimiento }} }
+                            </ng-template>
+                        </ng-select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Detalle</label>
+                        <input type="text" class="form-control" formControlName="detalle">
+                    </div>
+                    <div class="col-md-2 text-end align-self-end">
+                        <button type="button" class="btn btn-primary w-100" (click)="registrarMerma()">REGISTRAR</button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="mermaFiltros" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Todas" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Insumo</label>
+                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                               formControlName="id_insumo" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Motivo</label>
+                    <ng-select class="ng-select-sm" [items]="motivos()" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="motivo" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" formControlName="fecha_desde">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" formControlName="fecha_hasta">
+                </div>
+                <div class="col-12 text-end">
+                    <button type="button" class="btn btn-primary" (click)="filtrarMermas()">FILTRAR MERMAS</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Mermas" subtitulo="Costo financiero por merma, con motivo" [hideSearch]="true" [showAddBtn]="false"
+                [loading]="mermasLoading()" [data]="mermas()" [meta]="mermasMeta()" (pageChange)="cambiarPaginaMermas($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">FECHA</th>
+                        <th class="fw-bold border-0">INSUMO</th>
+                        <th class="fw-bold border-0">SUCURSAL</th>
+                        <th class="fw-bold border-0">MOTIVO</th>
+                        <th class="fw-bold border-0 text-end">CANT.</th>
+                        <th class="fw-bold border-0 text-end">COSTO</th>
+                        <th class="fw-bold border-0">USUARIO</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of mermas(); track item.id_merma) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3">{{ item.fecha_movimiento | date:'short' }}</td>
+                            <td>
+                                <div class="fw-bold text-erp">{{ item.insumo }}</div>
+                                <small class="text-muted-erp">{{ item.unidad_codigo }}</small>
+                            </td>
+                            <td>{{ item.sucursal }}</td>
+                            <td>{{ etiquetaMotivo(item.motivo) }}</td>
+                            <td class="text-end">{{ item.cantidad | number:'1.2-4' }}</td>
+                            <td class="text-end fw-bold">{{ item.costo_total | number:'1.2-2' }}</td>
+                            <td>{{ item.usuario }}</td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="7" class="text-center py-5 text-muted-erp">No hay mermas.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>
+
+<ng-template #modalMinimo let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-sliders"></i></div>
+            Stock mínimo
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="minimoForm">
+            <label class="form-label">Cantidad mínima</label>
+            <input type="number" min="0" step="0.0001" class="form-control" formControlName="stock_minimo">
+            <app-form-error [control]="minimoForm.get('stock_minimo')"></app-form-error>
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarMinimo(modal)">GUARDAR</button>
+    </div>
+</ng-template>

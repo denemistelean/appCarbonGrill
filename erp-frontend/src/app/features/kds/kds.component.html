@@ -1,0 +1,83 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-fire"></i></span>
+                    KDS — estación
+                </h5>
+                <span class="text-muted-erp text-xs-erp">
+                    El stock se descuenta al pulsar PREPARAR.
+                    @if (enVivo()) {
+                        <span class="badge-erp badge-success ms-1">En vivo</span>
+                    } @else {
+                        <span class="badge-erp badge-secondary ms-1">Polling 8 s</span>
+                    }
+                </span>
+            </div>
+            <button type="button" class="btn btn-soft-neutral" (click)="cargar()">
+                <i class="bi bi-arrow-clockwise me-1"></i> ACTUALIZAR
+            </button>
+        </div>
+        <form [formGroup]="filtros" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Sucursal</label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                           [searchable]="true" [clearable]="!sucursalBloqueada()"
+                           (change)="cargar()" notFoundText="Sin resultados">
+                </ng-select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Estación</label>
+                <ng-select class="ng-select-sm" [items]="estaciones" bindLabel="etiqueta" bindValue="codigo"
+                           formControlName="estacion" placeholder="Todas las permitidas" appendTo="body"
+                           [clearable]="true" (change)="cargar()">
+                </ng-select>
+            </div>
+        </form>
+    </div>
+
+    @if (loading()) {
+        <div class="text-muted-erp mb-3">Cargando tickets...</div>
+    }
+
+    <div class="row g-3">
+        @for (col of columnas(); track col.estado) {
+            <div class="col-lg-4">
+                <div class="kds-col-title">{{ col.titulo }} ({{ col.items.length }})</div>
+                @for (item of col.items; track item.id_pedido_item) {
+                    <div class="kds-card kds-{{ item.estado_preparacion.toLowerCase() }} mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="fw-bold">Mesa {{ item.mesa }}</div>
+                            <span class="badge-erp badge-secondary">{{ item.estacion }}</span>
+                        </div>
+                        <div class="fs-5 fw-bold text-erp my-2">{{ item.cantidad | number:'1.0-2' }} × {{ item.producto }}</div>
+                        @if (item.notas) {
+                            <div class="text-muted-erp mb-1">{{ item.notas }}</div>
+                        }
+                        @for (m of item.mods; track m.insumo + m.accion) {
+                            <div class="text-xs-erp">{{ m.accion === 'AGREGAR' ? '+' : 'SIN' }} {{ m.insumo }}</div>
+                        }
+                        @for (p of item.porciones; track p.nombre) {
+                            <div class="text-xs-erp">+ {{ p.nombre }}</div>
+                        }
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <small class="text-muted-erp">
+                                <span class="kds-timer" [class.kds-timer-warn]="item.estado_preparacion !== 'ENTREGADO'">{{ tiempoEnCocina(item) }}</span>
+                                · {{ etiquetaPrep(item.estado_preparacion) }}
+                            </small>
+                            @if (perms.hasPermission('actualizar_preparacion') && (item.estado_preparacion === 'PENDIENTE' || item.estado_preparacion === 'EN_PREPARACION')) {
+                                <button type="button" class="btn btn-sm btn-primary" (click)="avanzar(item)">
+                                    {{ item.estado_preparacion === 'PENDIENTE' ? 'PREPARAR' : 'LISTO' }}
+                                </button>
+                            }
+                        </div>
+                    </div>
+                } @empty {
+                    <div class="text-muted-erp text-center py-4">Sin tickets.</div>
+                }
+            </div>
+        }
+    </div>
+</div>

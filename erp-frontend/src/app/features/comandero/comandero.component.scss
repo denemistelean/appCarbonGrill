@@ -1,0 +1,21 @@
+.carta-card {
+  border: 1px solid var(--erp-border, #dee2e6);
+  border-radius: 10px;
+  background: var(--erp-card, #fff);
+  padding: 0.85rem;
+  min-height: 96px;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.carta-card:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.carta-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (min-width: 992px) {
+  .sticky-lg-top { top: 1rem; }
+}

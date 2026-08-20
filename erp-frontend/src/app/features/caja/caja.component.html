@@ -1,0 +1,327 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-cash-stack"></i></span>
+                    Caja
+                </h5>
+                <span class="text-muted-erp text-xs-erp">Cobro de mesas. En cada venta puede emitir nota de venta, boleta simple, boleta o factura electrónica.</span>
+            </div>
+            @if (turno()) {
+                <span class="badge-erp badge-success align-self-center">Turno #{{ turno().id_turno }} abierto</span>
+            } @else {
+                <span class="badge-erp badge-secondary align-self-center">Sin turno</span>
+            }
+        </div>
+        <form [formGroup]="sucursalForm" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Sucursal</label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                           [searchable]="true" [clearable]="!sucursalBloqueada()"
+                           (change)="onSucursal()" notFoundText="Sin resultados">
+                </ng-select>
+            </div>
+        </form>
+    </div>
+
+    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'turno') {
+        <div class="row g-3">
+            <div class="col-lg-6">
+                @if (!turno()) {
+                    <div class="card-pro p-3">
+                        <h6 class="fw-bold text-erp">Abrir turno</h6>
+                        <form [formGroup]="abrirForm" class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Monto de apertura (S/)</label>
+                                <input type="number" min="0" step="0.01" class="form-control" formControlName="monto_apertura">
+                                <app-form-error [control]="abrirForm.get('monto_apertura')"></app-form-error>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notas</label>
+                                <input type="text" class="form-control" formControlName="notas">
+                            </div>
+                            @if (perms.hasPermission('abrir_turno')) {
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-primary" (click)="abrirTurno()">ABRIR TURNO</button>
+                                </div>
+                            }
+                        </form>
+                    </div>
+                } @else {
+                    <div class="card-pro p-3">
+                        <h6 class="fw-bold text-erp">Turno actual</h6>
+                        <div class="text-muted-erp mb-2">{{ turno().cajero }} · {{ turno().fecha_apertura | date:'short' }}</div>
+                        <div class="d-flex justify-content-between"><span>Apertura</span><strong>S/ {{ turno().monto_apertura | number:'1.2-2' }}</strong></div>
+                        <div class="d-flex justify-content-between"><span>Cobrado</span><strong>S/ {{ turno().resumen?.total_cobrado | number:'1.2-2' }}</strong></div>
+                        <div class="d-flex justify-content-between"><span>Efectivo en caja (neto)</span><strong>S/ {{ (turno().monto_apertura + (turno().resumen?.efectivo_neto || 0)) | number:'1.2-2' }}</strong></div>
+                        <hr>
+                        @for (m of mediosCat; track m.codigo) {
+                            <div class="d-flex justify-content-between text-xs-erp">
+                                <span>{{ m.etiqueta }}</span>
+                                <span>S/ {{ (turno().resumen?.por_medio?.[m.codigo] || 0) | number:'1.2-2' }}</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            @if (turno() && perms.hasPermission('cerrar_turno')) {
+                <div class="col-lg-6">
+                    <div class="card-pro p-3">
+                        <h6 class="fw-bold text-erp">Cerrar turno</h6>
+                        <form [formGroup]="cerrarForm" class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Efectivo contado (S/)</label>
+                                <input type="number" min="0" step="0.01" class="form-control" formControlName="monto_cierre_contado">
+                                <app-form-error [control]="cerrarForm.get('monto_cierre_contado')"></app-form-error>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Notas</label>
+                                <input type="text" class="form-control" formControlName="notas">
+                            </div>
+                            <div class="col-12">
+                                <button type="button" class="btn btn-soft-neutral" (click)="cerrarTurno()">CERRAR TURNO</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (tab() === 'cobrar') {
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div class="card-pro p-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h6 class="fw-bold text-erp m-0">Cuentas abiertas</h6>
+                        <button type="button" class="btn btn-sm btn-soft-neutral" (click)="cargarPendientes()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    @if (loading()) { <div class="text-muted-erp">Cargando...</div> }
+                    @for (p of pendientes(); track p.id_pedido) {
+                        <button type="button" class="cuenta-row w-100 text-start mb-2" (click)="abrirPedido(p)">
+                            <div class="d-flex justify-content-between">
+                                <strong>Mesa {{ p.mesa }}</strong>
+                                <span>S/ {{ p.saldo | number:'1.2-2' }}</span>
+                            </div>
+                            <small class="text-muted-erp">{{ p.mozo }} · {{ p.estado_mesa }} · {{ p.estado_pedido }}</small>
+                        </button>
+                    } @empty {
+                        <div class="text-muted-erp py-3">No hay cuentas por cobrar.</div>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-7">
+                @if (detalle(); as det) {
+                    <div class="card-pro p-3">
+                        <div class="d-flex justify-content-between gap-2 mb-2">
+                            <div>
+                                <h6 class="fw-bold text-erp m-0">Mesa {{ det.pedido.mesa }} · Pedido #{{ det.pedido.id_pedido }}</h6>
+                                <small class="text-muted-erp">{{ det.pedido.mozo }} · {{ det.pedido.estado }}</small>
+                            </div>
+                            @if (perms.hasPermission('ver_precuenta')) {
+                                <button type="button" class="btn btn-sm btn-soft-neutral" (click)="descargarPrecuenta()">PRE-CUENTA PDF</button>
+                            }
+                            @if (perms.hasPermission('imprimir_ticket')) {
+                                <button type="button" class="btn btn-sm btn-soft-neutral" (click)="encolarTicket()">TICKET TÉRMICO</button>
+                            }
+                        </div>
+                        @for (i of det.items; track i.id_pedido_item) {
+                            <div class="d-flex gap-2 align-items-start border-bottom-dashed-erp py-2">
+                                @if (cobroForm.getRawValue().modo === 'ITEMS' && i.estado === 'PENDIENTE') {
+                                    <input type="checkbox" class="form-check-input mt-1"
+                                           [checked]="idsSel().includes(i.id_pedido_item)"
+                                           (change)="toggleItem(i.id_pedido_item)">
+                                }
+                                <div class="flex-grow-1">
+                                    <div>{{ i.cantidad | number:'1.0-2' }} × {{ i.producto }}</div>
+                                    @if (i.notas) { <small class="text-muted-erp">{{ i.notas }}</small> }
+                                </div>
+                                <div class="text-end">
+                                    <div>S/ {{ i.monto | number:'1.2-2' }}</div>
+                                    <span class="badge-erp" [class.badge-success]="i.estado === 'PAGADO'" [class.badge-secondary]="i.estado !== 'PAGADO'">{{ i.estado }}</span>
+                                </div>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between fw-bold mt-3">
+                            <span>Saldo</span>
+                            <span>S/ {{ det.cuenta.saldo | number:'1.2-2' }}</span>
+                        </div>
+
+                        @if (det.cuenta.estado !== 'PAGADA' && perms.hasPermission('cobrar')) {
+                            <form [formGroup]="cobroForm" class="row g-3 mt-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Modo</label>
+                                    <ng-select class="ng-select-sm" [items]="modos" bindLabel="etiqueta" bindValue="codigo"
+                                               formControlName="modo" appendTo="body" [clearable]="false"
+                                               (change)="idsSel.set([])">
+                                    </ng-select>
+                                </div>
+                                @if (cobroForm.getRawValue().modo === 'PARTES') {
+                                    <div class="col-md-3">
+                                        <label class="form-label">N° partes</label>
+                                        <ng-select class="ng-select-sm" [items]="partesOpts" bindLabel="etiqueta" bindValue="id"
+                                                   formControlName="n_partes" appendTo="body" [clearable]="false">
+                                        </ng-select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Cobrar parte</label>
+                                        <ng-select class="ng-select-sm"
+                                                   [items]="partesSelect(det)"
+                                                   bindLabel="etiqueta" bindValue="n_parte"
+                                                   formControlName="n_parte" appendTo="body" [clearable]="true"
+                                                   placeholder="Siguiente pendiente">
+                                        </ng-select>
+                                    </div>
+                                }
+                            </form>
+                            <div class="fw-bold my-2">A cobrar: S/ {{ montoACobrar() | number:'1.2-2' }}</div>
+                            <form [formGroup]="mediosForm" class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">Medio</label>
+                                    <ng-select class="ng-select-sm" [items]="mediosCat" bindLabel="etiqueta" bindValue="codigo"
+                                               formControlName="medio" appendTo="body" [clearable]="false">
+                                    </ng-select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Monto</label>
+                                    <input type="number" min="0.01" step="0.01" class="form-control" formControlName="monto">
+                                </div>
+                                @if (mediosForm.getRawValue().medio === 'EFECTIVO') {
+                                    <div class="col-md-2">
+                                        <label class="form-label">Recibido</label>
+                                        <input type="number" min="0" step="0.01" class="form-control" formControlName="recibido">
+                                    </div>
+                                }
+                                <div class="col-md-3">
+                                    <label class="form-label">Ref.</label>
+                                    <input type="text" class="form-control" formControlName="referencia" placeholder="Últimos 4 / celular">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-soft-neutral w-100" (click)="agregarMedio()">AÑADIR</button>
+                                </div>
+                            </form>
+                            @for (m of mediosDraft(); track $index) {
+                                <div class="d-flex justify-content-between small mt-1">
+                                    <span>{{ etiquetaMedio(m.medio) }} S/ {{ m.monto | number:'1.2-2' }}
+                                        @if (m.referencia) { · {{ m.referencia }} }
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-link" (click)="quitarMedio($index)">Quitar</button>
+                                </div>
+                            }
+                            <form [formGroup]="docForm" class="row g-2 mt-3">
+                                <div class="col-12">
+                                    <label class="form-label">Documento de la venta</label>
+                                    <ng-select class="ng-select-sm" [items]="tiposVenta" bindLabel="nombre" bindValue="id"
+                                               formControlName="tipo_comprobante" [clearable]="false" appendTo="body">
+                                    </ng-select>
+                                </div>
+                                @if (docForm.getRawValue().tipo_comprobante !== 'NINGUNO') {
+                                    <div class="col-5">
+                                        <label class="form-label">Doc.</label>
+                                        <ng-select class="ng-select-sm" [items]="tiposDoc" bindLabel="etiqueta" bindValue="codigo"
+                                                   formControlName="tipo_doc_cliente" [clearable]="false" appendTo="body">
+                                        </ng-select>
+                                    </div>
+                                    <div class="col-7">
+                                        <label class="form-label">Número</label>
+                                        <div class="d-flex gap-1">
+                                            <input type="text" class="form-control" formControlName="num_doc_cliente">
+                                            <button type="button" class="btn btn-soft-neutral" (click)="consultarSunat()" [disabled]="consultando()">
+                                                SUNAT
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Cliente</label>
+                                        <input type="text" class="form-control text-uppercase" formControlName="razon_social_cliente">
+                                    </div>
+                                }
+                            </form>
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="button" class="btn btn-soft-neutral" (click)="llenarEfectivo()">TODO EFECTIVO</button>
+                                <button type="button" class="btn btn-primary" (click)="cobrar()" [disabled]="!turno()">COBRAR</button>
+                            </div>
+                            @if (!turno()) {
+                                <div class="text-muted-erp mt-2">Abra un turno para cobrar.</div>
+                            }
+                        }
+                        @if (det.cuenta.estado === 'PAGADA') {
+                            <div class="badge-erp badge-success-erp mt-3">Cuenta pagada · mesa en limpieza</div>
+                        }
+                        @if ((det.cuenta.estado === 'PAGADA' || det.cuenta.estado === 'PARCIAL') && perms.hasPermission('emitir_comprobante')) {
+                            <button type="button" class="btn btn-primary mt-3" (click)="irAComprobante()">
+                                EMITIR COMPROBANTE SUNAT
+                            </button>
+                        }
+                    </div>
+                } @else {
+                    <div class="text-muted-erp py-5 text-center">Seleccione una cuenta.</div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (tab() === 'historial') {
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Turnos" subtitulo="Apertura, cierre y diferencia de efectivo"
+                [hideSearch]="true" [showAddBtn]="false" [loading]="historialLoading()"
+                [data]="historial()" [meta]="historialMeta()"
+                (pageChange)="cargarHistorial($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">TURNO</th>
+                        <th class="fw-bold border-0">SUCURSAL</th>
+                        <th class="fw-bold border-0">CAJERO</th>
+                        <th class="fw-bold border-0">ESTADO</th>
+                        <th class="fw-bold border-0 text-end">APERTURA</th>
+                        <th class="fw-bold border-0 text-end">CONTADO</th>
+                        <th class="fw-bold border-0 text-end">DIF.</th>
+                        <th class="text-center border-0"></th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (t of historial(); track t.id_turno) {
+                        <tr>
+                            <td class="ps-3">#{{ t.id_turno }}<div class="text-muted-erp text-xs-erp">{{ t.fecha_apertura | date:'short' }}</div></td>
+                            <td>{{ t.sucursal }}</td>
+                            <td>{{ t.cajero }}</td>
+                            <td>{{ t.estado }}</td>
+                            <td class="text-end">{{ t.monto_apertura | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ t.monto_cierre_contado | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ t.diferencia | number:'1.2-2' }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-soft-neutral" (click)="abrirDetalleTurno(t, modalTurno)">VER</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>
+
+<ng-template #modalTurno>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">Turno #{{ turnoDetalle()?.id_turno }}</h5>
+        <button type="button" class="btn-close shadow-none" (click)="cerrarModal()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        @if (turnoDetalle(); as t) {
+            <div class="mb-2">{{ t.cajero }} · {{ t.estado }}</div>
+            <div>Apertura S/ {{ t.monto_apertura | number:'1.2-2' }} · Esperado S/ {{ t.monto_cierre_esperado | number:'1.2-2' }} · Contado S/ {{ t.monto_cierre_contado | number:'1.2-2' }}</div>
+            <hr>
+            @for (c of t.cobros || []; track c.id_cobro) {
+                <div class="d-flex justify-content-between">
+                    <span>Mesa {{ c.mesa }} · {{ c.modo }}</span>
+                    <span>S/ {{ c.monto | number:'1.2-2' }}</span>
+                </div>
+            }
+        }
+    </div>
+</ng-template>

@@ -1,0 +1,206 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-journal-check"></i></span>
+                    Comandero
+                </h5>
+                <span class="text-muted-erp text-xs-erp">Toma de pedido por mesa. Confirme los pre-pedidos QR del cliente.</span>
+            </div>
+            @if (pedidoEstado()) {
+                <span class="badge-erp badge-secondary align-self-center">{{ etiquetaEstadoPedido(pedidoEstado()) }}</span>
+            }
+            @if (pedidoOrigen() === 'QR') {
+                <span class="badge-erp badge-outline-erp align-self-center">Pre-pedido QR</span>
+            }
+        </div>
+        <form [formGroup]="filtros" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Sucursal</label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                           [searchable]="true" [clearable]="!sucursalBloqueada()"
+                           (change)="onSucursal()" notFoundText="Sin resultados">
+                </ng-select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Mesa <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="mesas()" bindLabel="numero" bindValue="id_mesa"
+                           formControlName="id_mesa" placeholder="Seleccione mesa" appendTo="body"
+                           [searchable]="true" [clearable]="true" (change)="onMesa()" notFoundText="Sin mesas">
+                    <ng-template ng-option-tmp let-item="item">{{ item.numero }} · {{ item.estado }}</ng-template>
+                </ng-select>
+            </div>
+            <div class="col-md-2">
+                @if (loading()) { <span class="text-muted-erp">Cargando...</span> }
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @for (cat of categorias(); track cat) {
+                    <button type="button" class="btn btn-sm" [class.btn-primary]="categoria() === cat"
+                            [class.btn-soft-neutral]="categoria() !== cat" (click)="categoria.set(cat)">{{ cat }}</button>
+                }
+            </div>
+            <div class="row g-2">
+                @for (prod of cartaFiltrada(); track prod.id_producto) {
+                    <div class="col-6 col-md-4">
+                        <button type="button" class="carta-card w-100 text-start" [disabled]="!puedeEditar()"
+                                (click)="abrirProducto(prod, modalItem)">
+                            <div class="fw-bold text-erp text-uppercase">{{ prod.nombre }}</div>
+                            <small class="text-muted-erp">{{ prod.estacion }}</small>
+                            <div class="fw-bold mt-1">S/ {{ prod.precio | number:'1.2-2' }}</div>
+                        </button>
+                    </div>
+                } @empty {
+                    <div class="col-12 text-muted-erp py-4">Seleccione sucursal para ver la carta.</div>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card-pro p-3 sticky-lg-top">
+                <h6 class="fw-bold text-erp mb-3">Comanda</h6>
+                @for (l of lineas(); track l.uid) {
+                    <div class="border-bottom-dashed-erp pb-2 mb-2">
+                        <div class="d-flex justify-content-between gap-2">
+                            <div>
+                                <div class="fw-bold">{{ l.cantidad }} × {{ l.nombre }}</div>
+                                @if (l.notas) { <small class="text-muted-erp">{{ l.notas }}</small> }
+                                @for (m of l.mods; track m.id_insumo + m.accion) {
+                                    <div class="text-xs-erp">{{ m.accion === 'AGREGAR' ? '+' : 'sin' }} {{ m.etiqueta }}</div>
+                                }
+                                @for (p of l.porciones; track p.id_porcion) {
+                                    <div class="text-xs-erp">+ {{ p.nombre }} (S/ {{ p.precio | number:'1.2-2' }})</div>
+                                }
+                                @if (l.estado_preparacion) {
+                                    <span class="badge-erp badge-secondary">{{ l.estado_preparacion }}</span>
+                                }
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">S/ {{ lineaTotal(l) | number:'1.2-2' }}</div>
+                                @if (puedeEditar()) {
+                                    <button type="button" class="btn btn-sm btn-soft-neutral mt-1" (click)="quitarLinea(l.uid)">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                } @else if (l.estado_preparacion === 'LISTO' && perms.hasPermission('actualizar_preparacion')) {
+                                    <button type="button" class="btn btn-sm btn-primary mt-1" (click)="entregarItem(l)">Entregar</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                } @empty {
+                    <div class="text-muted-erp mb-3">Sin ítems. Toque un producto de la carta.</div>
+                }
+                <div class="d-flex justify-content-between fw-bold fs-5 mb-3">
+                    <span>Total</span>
+                    <span>S/ {{ total() | number:'1.2-2' }}</span>
+                </div>
+                @if (puedeEditar()) {
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-soft-neutral" (click)="guardarBorrador()">GUARDAR BORRADOR</button>
+                        @if (perms.hasPermission('confirmar_pedido')) {
+                            <button type="button" class="btn btn-primary" (click)="confirmarComanda()">CONFIRMAR Y ENVIAR</button>
+                        }
+                    </div>
+                }
+                @if (pedidoId() && esBorrador() && perms.hasPermission('anular_pedido')) {
+                    <button type="button" class="btn btn-soft-neutral w-100 mt-2" (click)="anularComanda()">ANULAR</button>
+                }
+                @if (puedePedirCuenta()) {
+                    <button type="button" class="btn btn-primary w-100 mt-2" (click)="pedirCuenta()">PEDIR CUENTA</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<ng-template #modalItem let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">{{ productoSel()?.nombre }}</h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="itemForm" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Cantidad</label>
+                <input type="number" min="0.001" step="1" class="form-control" formControlName="cantidad">
+                <app-form-error [control]="itemForm.get('cantidad')"></app-form-error>
+            </div>
+            @if (productoPermiteMods(productoSel())) {
+                @if (productoPermiteTermino(productoSel())) {
+                    <div class="col-md-8">
+                        <label class="form-label">Término</label>
+                        <ng-select class="ng-select-sm" [items]="terminos" bindLabel="etiqueta" bindValue="id"
+                                   formControlName="termino" appendTo="body" [clearable]="true"
+                                   placeholder="Seleccione término">
+                        </ng-select>
+                    </div>
+                }
+                <div class="col-md-8">
+                    <label class="form-label">Notas</label>
+                    <input type="text" class="form-control" formControlName="notas" placeholder="Opcional">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Porción extra</label>
+                    <ng-select class="ng-select-sm" [items]="porcionesDisponibles()" bindLabel="nombre" bindValue="id_porcion"
+                               formControlName="id_porcion" placeholder="Papas, ensalada..." appendTo="body"
+                               [searchable]="true" [clearable]="true" [compareWith]="cmpPorcion"
+                               (change)="agregarPorcion($event)">
+                        <ng-template ng-option-tmp let-item="item">
+                            {{ item.nombre }} · S/ {{ item.precio | number:'1.2-2' }}
+                        </ng-template>
+                    </ng-select>
+                </div>
+                <div class="col-md-4 align-self-end">
+                    <button type="button" class="btn btn-soft-neutral w-100" (click)="agregarPorcion()">AÑADIR PORCIÓN</button>
+                </div>
+                <div class="col-12">
+                    @for (p of porcionesDraft(); track p.id_porcion; let i = $index) {
+                        <span class="badge-erp badge-secondary me-1 mb-1">
+                            + {{ p.nombre }} S/ {{ p.precio | number:'1.2-2' }}
+                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem" (click)="quitarPorcion(i)"></button>
+                        </span>
+                    }
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">Sin / extra receta</label>
+                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                               formControlName="id_insumo" placeholder="Solo receta (opcional)" appendTo="body"
+                               [searchable]="true" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Acción</label>
+                    <ng-select class="ng-select-sm" [items]="accionesMod" bindLabel="etiqueta" bindValue="id"
+                               formControlName="accion" appendTo="body" [clearable]="false">
+                    </ng-select>
+                </div>
+                <div class="col-md-3 align-self-end">
+                    <button type="button" class="btn btn-soft-neutral w-100" (click)="agregarMod()">AÑADIR</button>
+                </div>
+                <div class="col-12">
+                    @for (m of modsDraft(); track m.id_insumo + m.accion; let i = $index) {
+                        <span class="badge-erp badge-secondary me-1 mb-1">
+                            {{ m.accion === 'AGREGAR' ? '+' : 'sin' }} {{ m.etiqueta }}
+                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5rem" (click)="quitarMod(i)"></button>
+                        </span>
+                    }
+                </div>
+            } @else {
+                <div class="col-md-8">
+                    <label class="form-label">Notas (opcional)</label>
+                    <input type="text" class="form-control" formControlName="notas" placeholder="Ej. Sin hielo">
+                </div>
+            }
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="confirmarProducto(modal)">AGREGAR A COMANDA</button>
+    </div>
+</ng-template>

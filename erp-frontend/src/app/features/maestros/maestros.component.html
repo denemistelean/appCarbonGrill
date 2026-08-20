@@ -1,0 +1,233 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'unidades') {
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+            <app-table-pro titulo="Unidades de medida" subtitulo="Gramos, litros y unidades de receta" btnText="NUEVA UNIDAD"
+                [showAddBtn]="perms.hasPermission('crear_producto')" [loading]="crudUnidades.tableLoading()"
+                [data]="crudUnidades.resource().data" [meta]="crudUnidades.resource().meta"
+                (add)="abrirUnidad(modalUnidad)" (pageChange)="crudUnidades.cambiarPagina($event)"
+                (search)="crudUnidades.searchControl.setValue($event)">
+
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                        <th class="fw-bold border-0">CÓDIGO</th>
+                        <th class="fw-bold border-0">NOMBRE</th>
+                        <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of crudUnidades.resource().data; track item.id_unidad_medida) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_unidad_medida }}</div></td>
+                            <td class="fw-bold text-erp">{{ item.codigo }}</td>
+                            <td class="text-erp text-uppercase">{{ item.nombre }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    @if (perms.hasPermission('actualizar_producto')) {
+                                        <button type="button" class="btn-action-edit" (click)="abrirUnidad(modalUnidad, item)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    }
+                                    @if (perms.hasPermission('eliminar_producto')) {
+                                        <button type="button" class="btn-action-delete" (click)="crudUnidades.deleteItem(item.id_unidad_medida)">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="4" class="text-center py-5 text-muted-erp">No hay unidades registradas.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'categorias') {
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+            <app-table-pro titulo="Categorías de carta" subtitulo="Agrupan los productos en el menú" btnText="NUEVA CATEGORÍA"
+                [showAddBtn]="perms.hasPermission('crear_producto')" [loading]="crudCategorias.tableLoading()"
+                [data]="crudCategorias.resource().data" [meta]="crudCategorias.resource().meta"
+                (add)="abrirCategoria(modalCategoria)" (pageChange)="crudCategorias.cambiarPagina($event)"
+                (search)="crudCategorias.searchControl.setValue($event)">
+
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                        <th class="fw-bold border-0">NOMBRE</th>
+                        <th class="fw-bold border-0">ORDEN</th>
+                        <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of crudCategorias.resource().data; track item.id_categoria) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_categoria }}</div></td>
+                            <td class="fw-bold text-erp text-uppercase">{{ item.nombre }}</td>
+                            <td class="text-muted-erp">{{ item.orden }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    @if (perms.hasPermission('actualizar_producto')) {
+                                        <button type="button" class="btn-action-edit" (click)="abrirCategoria(modalCategoria, item)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    }
+                                    @if (perms.hasPermission('eliminar_producto')) {
+                                        <button type="button" class="btn-action-delete" (click)="crudCategorias.deleteItem(item.id_categoria)">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="4" class="text-center py-5 text-muted-erp">No hay categorías registradas.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'porciones') {
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+            <app-table-pro titulo="Porciones" subtitulo="Extras vendibles (papas, ensalada). No son insumos." btnText="NUEVA PORCIÓN"
+                [showAddBtn]="perms.hasPermission('crear_producto')" [loading]="crudPorciones.tableLoading()"
+                [data]="crudPorciones.resource().data" [meta]="crudPorciones.resource().meta"
+                (add)="abrirPorcion(modalPorcion)" (pageChange)="crudPorciones.cambiarPagina($event)"
+                (search)="crudPorciones.searchControl.setValue($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">NOMBRE</th>
+                        <th class="fw-bold border-0 text-end">PRECIO</th>
+                        <th class="fw-bold border-0">ESTACIÓN</th>
+                        <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (item of crudPorciones.resource().data; track item.id_porcion) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3 fw-bold text-erp text-uppercase">{{ item.nombre }}</td>
+                            <td class="text-end">S/ {{ item.precio | number:'1.2-2' }}</td>
+                            <td>{{ item.aplica_estacion }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    @if (perms.hasPermission('actualizar_producto')) {
+                                        <button type="button" class="btn-action-edit" (click)="abrirPorcion(modalPorcion, item)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    }
+                                    @if (perms.hasPermission('eliminar_producto')) {
+                                        <button type="button" class="btn-action-delete" (click)="crudPorciones.deleteItem(item.id_porcion)">
+                                            <i class="bi bi-trash3-fill"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="4" class="text-center py-5 text-muted-erp">No hay porciones registradas.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>
+
+<ng-template #modalUnidad let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-rulers"></i></div>
+            {{ crudUnidades.editingId() ? 'Editar unidad' : 'Nueva unidad' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="formUnidad" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Código <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="codigo"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="formUnidad.get('codigo')"></app-form-error>
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Nombre <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="formUnidad.get('nombre')"></app-form-error>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarUnidad()">GUARDAR</button>
+    </div>
+</ng-template>
+
+<ng-template #modalCategoria let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-tags"></i></div>
+            {{ crudCategorias.editingId() ? 'Editar categoría' : 'Nueva categoría' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="formCategoria" class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label">Nombre <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="formCategoria.get('nombre')"></app-form-error>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Orden</label>
+                <input type="number" class="form-control" formControlName="orden" min="0">
+                <app-form-error [control]="formCategoria.get('orden')"></app-form-error>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarCategoria()">GUARDAR</button>
+    </div>
+</ng-template>
+
+<ng-template #modalPorcion let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-plus-square"></i></div>
+            {{ crudPorciones.editingId() ? 'Editar porción' : 'Nueva porción' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="formPorcion" class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Nombre <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre">
+                <app-form-error [control]="formPorcion.get('nombre')"></app-form-error>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Precio (S/)</label>
+                <input type="number" step="0.50" min="0" class="form-control" formControlName="precio">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Estación</label>
+                <ng-select class="ng-select-sm" [items]="estacionesPorcion" bindLabel="etiqueta" bindValue="codigo"
+                           formControlName="aplica_estacion" appendTo="body" [clearable]="false">
+                </ng-select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Orden</label>
+                <input type="number" min="0" class="form-control" formControlName="orden">
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarPorcion()">GUARDAR</button>
+    </div>
+</ng-template>

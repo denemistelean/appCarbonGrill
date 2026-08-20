@@ -1,0 +1,71 @@
+<div class="login-page">
+  <div class="login-wrapper">
+
+    <div class="card-pro p-0 overflow-hidden">
+
+      <div class="card-header-pro">
+        <div class="d-flex align-items-center gap-3">
+          <div class="icon-badge icon-badge-lg">
+            <i class="bi bi-shield-lock-fill"></i>
+          </div>
+          <div>
+            <p class="erp-subtitle mb-0">CARBON GRILL</p>
+            <h5 class="erp-title-section mb-0">Sistema de gestión</h5>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body-pro">
+
+        @if (errorMsg) {
+          <div class="erp-alert-box erp-alert-danger mb-4">
+            <div class="erp-alert-icon"><i class="bi bi-x-circle-fill"></i></div>
+            <div class="erp-alert-content">
+              <p class="erp-alert-body mb-0">{{ errorMsg }}</p>
+            </div>
+          </div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+          <div class="mb-3">
+            <label class="form-label" for="inputEmail">Usuario o Correo Electrónico</label>
+            <input class="form-control"
+                   id="inputEmail"
+                   type="text"
+                   placeholder="Ej: admin"
+                   formControlName="email"
+                   [class.is-invalid]="form.get('email')?.invalid && form.get('email')?.touched" />
+            <div class="invalid-feedback">Por favor ingrese su usuario o correo.</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label" for="inputPassword">Contraseña</label>
+            <input class="form-control"
+                   id="inputPassword"
+                   type="password"
+                   placeholder="••••••••"
+                   formControlName="password"
+                   [class.is-invalid]="form.get('password')?.invalid && form.get('password')?.touched" />
+            <div class="invalid-feedback">La contraseña es obligatoria.</div>
+          </div>
+
+          <div class="d-grid">
+            <button class="btn btn-primary" type="submit" [disabled]="form.invalid || cargando">
+              @if (cargando) { <span class="spinner-border spinner-border-sm me-2"></span> }
+              {{ cargando ? 'Validando...' : 'INGRESAR' }}
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="text-center py-3 border-top-erp">
+        <a href="#" class="text-muted-erp text-decoration-none text-badge">
+          ¿Olvidaste tu contraseña?
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+﻿<label class="form-label">{{ label }}</label>
+<div class="datetime-picker-wrapper" [class.picker-readonly]="readonly">
+
+  <!-- FECHA -->
+  <div class="input-group date-part" (click)="!readonly && dp.open()" style="cursor: pointer; flex: 1;">
+    <span class="input-group-text border-end-0">
+      <i class="bi bi-calendar-event text-primary-erp"></i>
+    </span>
+    <input class="form-control border-start-0 pe-none"
+           placeholder="dd/mm/yyyy"
+           [value]="dateText()"
+           ngbDatepicker
+           #dp="ngbDatepicker"
+           [autoClose]="true"
+           [displayMonths]="mesesVisibles"
+           [dayTemplate]="t"
+           outsideDays="hidden"
+           (dateSelect)="onDateSelection($event, dp)">
+  </div>
+
+  <!-- HORA -->
+  <div class="input-group time-part" style="width: 130px; flex-shrink: 0;">
+    <span class="input-group-text border-end-0">
+      <i class="bi bi-clock text-primary-erp"></i>
+    </span>
+    <input type="time"
+           class="form-control border-start-0 fw-bold font-numeric-erp text-primary-erp"
+           [value]="timeValue"
+           [disabled]="readonly"
+           (change)="onTimeChange($any($event.target).value)">
+  </div>
+
+</div>
+
+<ng-template #t let-date let-focused="focused">
+  <span class="custom-day"
+        [class.focused]="focused"
+        [class.range]="selectedDate?.equals(date)"
+        (mouseenter)="hoveredDate = date"
+        (mouseleave)="hoveredDate = null">
+    {{ date.day }}
+  </span>
+</ng-template>

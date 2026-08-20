@@ -1,0 +1,42 @@
+/* Barra de progreso global (loader de navegación) */
+.global-top-progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--erp-primary) 30%,
+        var(--erp-secondary) 65%,
+        var(--erp-primary) 100%
+    );
+    background-size: 200% 100%;
+    animation: progressFlow 1.4s ease infinite;
+    z-index: 99999;
+    box-shadow: 0 0 12px rgba(var(--erp-primary-rgb), 0.6);
+}
+
+@keyframes progressFlow {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Contenedor principal del contenido (derecha del sidebar) */
+.layout-main-content {
+    min-width: 0;
+    position: relative;
+    background-color: transparent;
+}
+
+/* Topbar */
+.app-navbar {
+    background-color: var(--erp-card) !important;
+    border-bottom: 1px solid var(--erp-border-soft) !important;
+    box-shadow: 0 1px 8px rgba(var(--erp-shadow-rgb), 0.05) !important;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    z-index: 10;
+}
+
+.navbar-title {
+    letter-spacing: -0.5px;
+}

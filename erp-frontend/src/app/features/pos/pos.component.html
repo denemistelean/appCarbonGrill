@@ -1,0 +1,174 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-bag-check"></i></span>
+                    Venta mostrador
+                </h5>
+                <span class="text-muted-erp text-xs-erp">Para llevar / caja rápida. No ocupa mesa de salón.</span>
+            </div>
+            @if (turno()) {
+                <span class="badge-erp badge-success align-self-center">Turno abierto</span>
+            } @else {
+                <span class="badge-erp badge-secondary align-self-center">Sin turno — ábralo en Caja</span>
+            }
+        </div>
+        <form [formGroup]="cabecera" class="row g-3 mt-1">
+            <div class="col-md-4">
+                <label class="form-label">Sucursal</label>
+                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                           formControlName="id_sucursal" appendTo="body" [searchable]="true"
+                           [clearable]="!sucursalBloqueada()" notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="cabecera.get('id_sucursal')"></app-form-error>
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Buscar producto</label>
+                <ng-select class="ng-select-sm" [items]="cartaFiltrada()" bindLabel="nombre"
+                           [formControl]="productoCtrl" [searchable]="true" [clearable]="true"
+                           placeholder="Nombre o código" appendTo="body" notFoundText="Sin resultados"
+                           (change)="agregarDesdeSelect($event)">
+                    <ng-template ng-option-tmp let-item="item">
+                        <div class="fw-bold">{{ item.nombre }}</div>
+                        <small class="text-muted">{{ item.categoria }} · S/ {{ item.precio | number:'1.2-2' }}</small>
+                    </ng-template>
+                </ng-select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filtrar listado</label>
+                <input type="text" class="form-control" placeholder="Filtrar la carta"
+                       [value]="busqueda()" (input)="busqueda.set($any($event.target).value)">
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Cliente</label>
+                <ng-select class="ng-select-sm" [items]="clientes()" bindLabel="etiqueta" bindValue="id_cliente"
+                           formControlName="id_cliente" [searchable]="true" [clearable]="true"
+                           placeholder="Cliente opcional" appendTo="body" notFoundText="Sin resultados"
+                           (search)="buscarClientes($event.term)" (change)="onCliente($event)">
+                    <ng-template ng-option-tmp let-item="item">
+                        <div class="fw-bold">{{ item.razon_social }}</div>
+                        <small class="text-muted">{{ item.tipo_documento }} {{ item.numero_documento }}</small>
+                    </ng-template>
+                </ng-select>
+            </div>
+        </form>
+    </div>
+
+    <div class="pos-grid">
+        <div>
+            <div class="pos-cats mb-3">
+                @for (c of categorias(); track c) {
+                    <button type="button" class="btn btn-sm"
+                            [class.btn-primary]="categoria() === c"
+                            [class.btn-soft-neutral]="categoria() !== c"
+                            (click)="categoria.set(c)">{{ c }}</button>
+                }
+            </div>
+            <div class="pos-products mb-3">
+                @for (p of cartaFiltrada(); track p.id_producto) {
+                    <button type="button" class="pos-card" (click)="agregar(p)">
+                        <div class="fw-bold text-erp text-uppercase">{{ p.nombre }}</div>
+                        <div class="text-muted-erp text-xs-erp">{{ p.categoria }}</div>
+                        <div class="fw-bold mt-1">S/ {{ p.precio | number:'1.2-2' }}</div>
+                    </button>
+                } @empty {
+                    <div class="text-muted-erp">No hay productos. Elija sucursal.</div>
+                }
+            </div>
+            <div class="card-pro p-0 p-md-3">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="text-uppercase text-muted table-header-erp">
+                            <tr>
+                                <th>Producto</th>
+                                <th style="width: 110px;">Cant.</th>
+                                <th class="text-end" style="width: 130px;">Subtotal</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (l of carrito(); track l.id_producto) {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-erp">{{ l.nombre }}</div>
+                                        <small class="text-muted">S/ {{ l.precio | number:'1.2-2' }}</small>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control" min="0.001" step="0.001"
+                                               [value]="l.cantidad" (change)="setCantidad(l.id_producto, $any($event.target).value)">
+                                    </td>
+                                    <td class="text-end fw-bold">S/ {{ l.precio * l.cantidad | number:'1.2-2' }}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-action-delete" (click)="quitar(l.id_producto)">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            } @empty {
+                                <tr><td colspan="4" class="text-center py-4 text-muted-erp">Toque un producto o búsquelo arriba.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-pro p-3">
+            <h6 class="fw-bold text-erp">Resumen</h6>
+            <div class="d-flex justify-content-between fw-bold my-3">
+                <span>Total</span><span>S/ {{ total() | number:'1.2-2' }}</span>
+            </div>
+
+            <form [formGroup]="cabecera" class="row g-2">
+                <div class="col-12">
+                    <label class="form-label">Tipo de venta</label>
+                    <ng-select class="ng-select-sm" [items]="tipos" bindLabel="nombre" bindValue="id"
+                               formControlName="tipo_comprobante" [clearable]="false" appendTo="body">
+                    </ng-select>
+                    <small class="text-muted-erp">Nota de venta y boleta simple no van a SUNAT.</small>
+                </div>
+                <div class="col-5">
+                    <label class="form-label">Doc.</label>
+                    <ng-select class="ng-select-sm" [items]="tiposDoc" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="tipo_doc_cliente" [clearable]="false" appendTo="body">
+                    </ng-select>
+                </div>
+                <div class="col-7">
+                    <label class="form-label">Número</label>
+                    <div class="d-flex gap-1">
+                        <input type="text" class="form-control" formControlName="num_doc_cliente">
+                        <button type="button" class="btn btn-soft-neutral" (click)="consultarSunat()" [disabled]="consultando()">
+                            {{ consultando() ? '...' : 'SUNAT' }}
+                        </button>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Nombre / razón social</label>
+                    <input type="text" class="form-control text-uppercase" formControlName="razon_social_cliente">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="form-control" formControlName="direccion_cliente">
+                </div>
+                <div class="col-7">
+                    <label class="form-label">Pago</label>
+                    <ng-select class="ng-select-sm" [items]="mediosCat" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="medio" [clearable]="false" appendTo="body">
+                    </ng-select>
+                </div>
+                @if (cabecera.getRawValue().medio === 'EFECTIVO') {
+                    <div class="col-5">
+                        <label class="form-label">Recibido</label>
+                        <input type="number" min="0" step="0.01" class="form-control" formControlName="recibido">
+                    </div>
+                }
+            </form>
+            @if (perms.hasPermission('crear_venta_pos')) {
+                <button type="button" class="btn btn-primary w-100 mt-3" (click)="confirmar()" [disabled]="cobrando() || !turno()">
+                    {{ cobrando() ? 'PROCESANDO...' : 'COBRAR Y EMITIR' }}
+                </button>
+            }
+        </div>
+    </div>
+</div>

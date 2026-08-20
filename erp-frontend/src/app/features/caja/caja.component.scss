@@ -1,0 +1,9 @@
+.cuenta-row {
+  border: 1px solid var(--erp-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  background: #fff;
+}
+.cuenta-row:hover {
+  border-color: var(--erp-primary, #0d6efd);
+}

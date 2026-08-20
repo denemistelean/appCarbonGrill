@@ -1,0 +1,83 @@
+<div class="carta-publica">
+    <header class="carta-head">
+        <div>
+            <div class="marca">CARBON GRILL</div>
+            @if (ctx(); as c) {
+                <h1>Mesa {{ c.mesa.numero }}</h1>
+                <small>{{ c.sucursal.nombre }}</small>
+            } @else {
+                <h1>Carta</h1>
+            }
+        </div>
+        @if (ctx()?.pedido; as p) {
+            <span class="estado">{{ p.estado === 'PENDIENTE_CONFIRMACION' ? 'Esperando mozo' : p.estado }}</span>
+        }
+    </header>
+
+    @if (loading()) {
+        <p class="msg">Cargando carta...</p>
+    } @else if (error()) {
+        <p class="msg error">{{ error() }}</p>
+    } @else if (ctx(); as c) {
+        <div class="cats">
+            @for (cat of categorias(); track cat) {
+                <button type="button" [class.active]="categoria() === cat" (click)="categoria.set(cat)">{{ cat }}</button>
+            }
+        </div>
+
+        <div class="grid">
+            @for (prod of cartaFiltrada(); track prod.id_producto) {
+                <button type="button" class="plato" [disabled]="!c.puede_pedir" (click)="agregar(prod)">
+                    <div class="nombre">{{ prod.nombre }}</div>
+                    <div class="precio">S/ {{ prod.precio | number:'1.2-2' }}</div>
+                </button>
+            } @empty {
+                <p class="msg">No hay platos disponibles.</p>
+            }
+        </div>
+
+        <section class="carrito">
+            <h2>Tu pedido</h2>
+            @for (l of carrito(); track $index) {
+                <div class="linea">
+                    <div>
+                        <strong>{{ l.cantidad }} × {{ l.nombre }}</strong>
+                        <div>S/ {{ (l.precio * l.cantidad) | number:'1.2-2' }}</div>
+                    </div>
+                    @if (c.puede_pedir) {
+                        <button type="button" class="link" (click)="quitar($index)">Quitar</button>
+                    }
+                </div>
+            } @empty {
+                <p class="msg">Toque un plato para agregarlo.</p>
+            }
+            <div class="total">
+                <span>Total</span>
+                <strong>S/ {{ total() | number:'1.2-2' }}</strong>
+            </div>
+            @if (c.puede_pedir) {
+                <button type="button" class="btn-main" (click)="enviar()" [disabled]="enviando() || !carrito().length">
+                    ENVIAR AL MOZO
+                </button>
+                <p class="hint">No va a cocina hasta que el mozo confirme.</p>
+            } @else {
+                <p class="hint">Si desea algo más, llame al mozo.</p>
+            }
+        </section>
+
+        <section class="llamar">
+            <h2>Llamar mozo</h2>
+            <form [formGroup]="llamarForm">
+                <label>Motivo</label>
+                <ng-select class="ng-select-sm" [items]="motivos" bindLabel="etiqueta" bindValue="codigo"
+                           formControlName="motivo" appendTo="body" [clearable]="false" [searchable]="false">
+                </ng-select>
+                <label class="mt">Detalle (opcional)</label>
+                <input type="text" formControlName="detalle" maxlength="200" placeholder="Ej. cubiertos extra">
+                <app-form-error [control]="llamarForm.get('motivo')"></app-form-error>
+                <button type="button" class="btn-ghost" (click)="llamar()">LLAMAR MOZO</button>
+                <p class="hint">Para pedir la cuenta elija motivo «Pedir la cuenta». El mozo verá la mesa en amarillo en el salón.</p>
+            </form>
+        </section>
+    }
+</div>

@@ -1,0 +1,88 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from 'src/environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class UnidadesService {
+  private http = inject(HttpClient);
+  private apiUrl = `${environment.apiUrlGestion}/catalogo/unidades-medida`;
+
+  findAll(page: number, limit: number, search: string): Observable<any> {
+    let params = new HttpParams().set('page', page.toString()).set('limit', limit.toString());
+    if (search) params = params.set('search', search);
+    return this.http.get(this.apiUrl, { params });
+  }
+
+  lista(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/lista`);
+  }
+
+  create(data: any): Observable<any> {
+    return this.http.post(this.apiUrl, data);
+  }
+
+  update(id: number, data: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/${id}`, data);
+  }
+
+  delete(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class CategoriasService {
+  private http = inject(HttpClient);
+  private apiUrl = `${environment.apiUrlGestion}/catalogo/categorias`;
+
+  findAll(page: number, limit: number, search: string): Observable<any> {
+    let params = new HttpParams().set('page', page.toString()).set('limit', limit.toString());
+    if (search) params = params.set('search', search);
+    return this.http.get(this.apiUrl, { params });
+  }
+
+  lista(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/lista`);
+  }
+
+  create(data: any): Observable<any> {
+    return this.http.post(this.apiUrl, data);
+  }
+
+  update(id: number, data: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/${id}`, data);
+  }
+
+  delete(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class PorcionesService {
+  private http = inject(HttpClient);
+  private apiUrl = `${environment.apiUrlGestion}/catalogo/porciones`;
+
+  findAll(page: number, limit: number, search: string): Observable<any> {
+    let params = new HttpParams().set('page', page.toString()).set('limit', limit.toString());
+    if (search) params = params.set('search', search);
+    return this.http.get(this.apiUrl, { params });
+  }
+
+  lista(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/lista`);
+  }
+
+  create(data: any): Observable<any> {
+    return this.http.post(this.apiUrl, data);
+  }
+
+  update(id: number, data: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/${id}`, data);
+  }
+
+  delete(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+}

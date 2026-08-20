@@ -1,0 +1,5 @@
+.badge-success { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.badge-danger { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.badge-primary { background: rgba(var(--erp-primary-rgb), 0.15); color: var(--erp-primary); }
+.table-danger td { background: rgba(239, 68, 68, 0.08) !important; }

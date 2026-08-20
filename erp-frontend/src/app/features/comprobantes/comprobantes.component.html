@@ -1,0 +1,414 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-receipt"></i></span>
+                    Comprobantes SUNAT
+                </h5>
+                <span class="text-muted-erp text-xs-erp">
+                    Boleta, factura y nota de crédito vía OSE
+                    ({{ catalogos().ose_modo || 'MOCK' }}). Precios de carta incluyen IGV 18%.
+                </span>
+                <div class="d-flex flex-wrap gap-3 small fact-legend mt-2">
+                    <span><i class="bi bi-check-circle-fill text-success"></i> Aceptado</span>
+                    <span><i class="bi bi-exclamation-triangle-fill text-warning"></i> Observado</span>
+                    <span><i class="bi bi-x-circle-fill text-danger"></i> Rechazado / Error</span>
+                    <span><i class="bi bi-arrow-repeat text-primary"></i> Pendiente de envío</span>
+                </div>
+            </div>
+            @if (emisorVisible(); as em) {
+                <div class="text-end text-xs-erp text-muted-erp">
+                    <div>{{ em.nombreComercial }}</div>
+                    <div>RUC {{ em.ruc }}</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <app-erp-tabs [tabs]="tabs()" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'listado') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="filtros" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Todas" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tipo</label>
+                    <ng-select class="ng-select-sm" [items]="tiposFiltro" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="tipo" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <ng-select class="ng-select-sm" [items]="estados" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="estado" placeholder="Todos" appendTo="body"
+                               [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary flex-grow-1" (click)="filtrar()">FILTRAR</button>
+                        @if (perms.hasPermission('reintentar_ose')) {
+                            <button type="button" class="btn btn-soft-neutral" (click)="reenviarLote()">Lote OSE</button>
+                        }
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Comprobantes" subtitulo="El correlativo no se reutiliza si el OSE rechaza. Use reenviar."
+                [showAddBtn]="false" [loading]="loading()" [data]="rows()" [meta]="meta()"
+                searchPlaceholder="Serie, cliente o documento"
+                (search)="onSearch($event)" (pageChange)="cargarListado($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">Fecha</th>
+                        <th class="fw-bold border-0">Comprobante</th>
+                        <th class="fw-bold border-0">Cliente</th>
+                        <th class="text-end fw-bold border-0">Total</th>
+                        <th class="text-center fw-bold border-0">PDF A4</th>
+                        <th class="text-center fw-bold border-0">Ticket</th>
+                        <th class="text-center fw-bold border-0">XML</th>
+                        <th class="text-center fw-bold border-0">CDR</th>
+                        <th class="text-center fw-bold border-0">SUNAT</th>
+                        <th class="text-center border-0" style="min-width: 80px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (c of rows(); track c.id_comprobante) {
+                        <tr class="align-middle">
+                            <td class="ps-3">
+                                <div class="fw-bold text-erp">{{ c.fecha_emision | date:'dd-MM-yyyy' }}</div>
+                                <small class="text-muted-erp">{{ c.fecha_emision | date:'hh:mm a' }}</small>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-erp">{{ etiquetaTipo(c.tipo) }}: {{ nro(c) }}</div>
+                                <div class="text-muted-erp text-xs-erp">{{ c.sucursal }}</div>
+                                @if (c.ose_mensaje) {
+                                    <small class="text-muted-erp d-block mt-1 text-truncate" style="max-width: 280px;" [title]="c.ose_mensaje">{{ c.ose_mensaje }}</small>
+                                }
+                            </td>
+                            <td>
+                                @if (c.num_doc_cliente) {
+                                    <div class="small text-muted-erp">{{ c.num_doc_cliente }}</div>
+                                }
+                                <div class="fw-bold">{{ c.razon_social_cliente }}</div>
+                            </td>
+                            <td class="text-end fw-bold">S/ {{ (c.total || 0) | number:'1.2-2' }}</td>
+                            <td class="text-center">
+                                <a class="btn-file" href="#" title="PDF A4 — ver / imprimir"
+                                   (click)="abrirPdf(c.id_comprobante, $event)">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                <a class="btn-file" href="#" title="Ticket 80mm — ver / imprimir"
+                                   (click)="abrirTicket(c.id_comprobante, $event)">
+                                    <i class="bi bi-receipt text-dark"></i>
+                                </a>
+                            </td>
+                            <td class="text-center">
+                                @if (perms.hasPermission('ver_xml') && tieneXml(c)) {
+                                    <a class="btn-file" href="#" title="XML" (click)="descargarXml(c.id_comprobante, 'xml'); $event.preventDefault()">
+                                        <i class="bi bi-filetype-xml text-primary"></i>
+                                    </a>
+                                } @else {
+                                    <span class="text-muted-erp">—</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (perms.hasPermission('ver_xml') && tieneCdr(c)) {
+                                    <a class="btn-file" href="#" title="CDR" (click)="descargarXml(c.id_comprobante, 'cdr'); $event.preventDefault()">
+                                        <i class="bi bi-file-earmark-zip-fill text-success"></i>
+                                    </a>
+                                } @else {
+                                    <span class="text-muted-erp">—</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <i class="bi fs-5" [ngClass]="sunatIcon(c.estado)" [title]="c.estado"></i>
+                                @if (c.es_contingencia) {
+                                    <div class="text-muted-erp text-xs-erp">CONTINGENCIA</div>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div ngbDropdown container="body" class="d-inline-block" [placement]="['bottom-end', 'top-end']">
+                                    <button type="button" class="btn btn-sm btn-soft-neutral px-2" ngbDropdownToggle title="Acciones">
+                                        <i class="bi bi-list"></i>
+                                    </button>
+                                    <div ngbDropdownMenu class="fact-acciones-menu shadow-sm">
+                                        <button type="button" ngbDropdownItem (click)="abrirDetalle(c, detTpl)">
+                                            <i class="bi bi-eye text-primary me-2"></i> Ver detalle
+                                        </button>
+                                        @if (perms.hasPermission('emitir_comprobante') && puedeReenviar(c)) {
+                                            <button type="button" ngbDropdownItem (click)="reenviar(c)">
+                                                <i class="bi bi-send text-primary me-2"></i> Reenviar CPE
+                                            </button>
+                                        }
+                                        @if (perms.hasPermission('imprimir_ticket')) {
+                                            <button type="button" ngbDropdownItem (click)="encolarTicket(c)">
+                                                <i class="bi bi-printer text-dark me-2"></i> Encolar ticket
+                                            </button>
+                                        }
+                                        @if (perms.hasPermission('anular_comprobante') && c.tipo !== '07' && c.estado !== 'ANULADO') {
+                                            <div class="dropdown-divider"></div>
+                                            <button type="button" ngbDropdownItem (click)="abrirAnular(c, anularTpl)">
+                                                <i class="bi bi-x-square text-danger me-2"></i> Anular comprobante
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'emitir') {
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Datos del comprobante</h6>
+                    <form [formGroup]="emitirForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Cuenta</label>
+                            <input type="number" class="form-control" formControlName="id_cuenta" placeholder="ID cuenta"
+                                   (change)="cargarPreview(+(emitirForm.getRawValue().id_cuenta || 0))">
+                            <app-form-error [control]="emitirForm.get('id_cuenta')"></app-form-error>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo</label>
+                            <ng-select class="ng-select-sm" [items]="tiposEmitir" bindLabel="etiqueta" bindValue="codigo"
+                                       formControlName="tipo" appendTo="body" [clearable]="false" [searchable]="false">
+                            </ng-select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Serie</label>
+                            <ng-select class="ng-select-sm" [items]="seriesEmitir()" bindLabel="serie" bindValue="id_serie"
+                                       formControlName="id_serie" placeholder="Serie" appendTo="body"
+                                       [searchable]="true" [clearable]="false" notFoundText="Sin series">
+                            </ng-select>
+                            <app-form-error [control]="emitirForm.get('id_serie')"></app-form-error>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Doc. cliente</label>
+                            <ng-select class="ng-select-sm" [items]="catalogos().docs || []" bindLabel="etiqueta" bindValue="codigo"
+                                       formControlName="tipo_doc_cliente" appendTo="body"
+                                       [searchable]="true" [clearable]="false" notFoundText="Sin resultados">
+                            </ng-select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Número</label>
+                            <div class="d-flex gap-1">
+                                <input type="text" class="form-control" formControlName="num_doc_cliente" maxlength="15">
+                                <button type="button" class="btn btn-soft-neutral" (click)="consultarSunat()" [disabled]="consultando()">
+                                    {{ consultando() ? '...' : 'SUNAT' }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nombre / razón social</label>
+                            <input type="text" class="form-control" formControlName="razon_social_cliente" maxlength="200">
+                            <app-form-error [control]="emitirForm.get('razon_social_cliente')"></app-form-error>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" class="form-control" formControlName="direccion_cliente" maxlength="255">
+                        </div>
+                    </form>
+                    <div class="alert alert-light border mt-3 mb-0 text-xs-erp">
+                        Se emite con el RUC del local de la cuenta (cada sucursal tiene su facturación).
+                        Factura exige RUC del cliente. Boleta de S/ 700 o más exige DNI.
+                        Si el OSE rechaza, el número queda ocupado: use Reenviar.
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Ítems cobrados pendientes</h6>
+                    @if (preview(); as prev) {
+                        <div class="text-muted-erp text-xs-erp mb-2">
+                            Mesa {{ prev.cuenta.mesa }} · Cuenta #{{ prev.cuenta.id_cuenta }} · {{ prev.cuenta.estado }}
+                        </div>
+                        @for (i of prev.items; track i.id_cuenta_item) {
+                            <label class="d-flex gap-2 align-items-start border-bottom-dashed-erp py-2">
+                                <input type="checkbox" class="form-check-input mt-1"
+                                       [checked]="idsSel().includes(+i.id_cuenta_item)"
+                                       (change)="toggleItem(+i.id_cuenta_item)">
+                                <div class="flex-grow-1">
+                                    <div>{{ i.cantidad | number:'1.0-2' }} × {{ i.descripcion }}</div>
+                                </div>
+                                <div>S/ {{ i.total | number:'1.2-2' }}</div>
+                            </label>
+                        } @empty {
+                            <div class="text-muted-erp py-3">Nada pendiente de facturar en esta cuenta.</div>
+                        }
+                        <div class="d-flex justify-content-between mt-3">
+                            <span>OP. gravada</span><span>S/ {{ prev.op_gravada | number:'1.2-2' }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>IGV 18%</span><span>S/ {{ prev.igv | number:'1.2-2' }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between fw-bold mt-2">
+                            <span>Total a emitir</span>
+                            <span>S/ {{ totalEmitir() | number:'1.2-2' }}</span>
+                        </div>
+                        @if (perms.hasPermission('emitir_comprobante')) {
+                            <button type="button" class="btn btn-primary w-100 mt-3" (click)="emitir()" [disabled]="emitiendo()">
+                                EMITIR Y ENVIAR OSE
+                            </button>
+                        }
+                    } @else {
+                        <div class="text-muted-erp py-4 text-center">Indique el ID de cuenta o emita desde Caja.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (tab() === 'series') {
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Nueva serie</h6>
+                    <form [formGroup]="serieForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Sucursal</label>
+                            <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                                       formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                                       [searchable]="true" [clearable]="!sucursalBloqueada()" notFoundText="Sin resultados">
+                            </ng-select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <ng-select class="ng-select-sm" [items]="tiposFiltro" bindLabel="etiqueta" bindValue="codigo"
+                                       formControlName="tipo" appendTo="body" [clearable]="false">
+                            </ng-select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Serie (4)</label>
+                            <input type="text" class="form-control text-uppercase" formControlName="serie" maxlength="4" placeholder="B001">
+                            <app-form-error [control]="serieForm.get('serie')"></app-form-error>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary" (click)="crearSerie()">CREAR SERIE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card-pro table-pro-container p-0 p-md-3">
+                    <app-table-pro titulo="Series por sucursal" [hideSearch]="true" [showAddBtn]="false"
+                        [data]="series()" [meta]="{ total: series().length, page: 1, limit: series().length || 10 }">
+                        <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                            <tr>
+                                <th class="ps-3 fw-bold border-0">SERIE</th>
+                                <th class="fw-bold border-0">TIPO</th>
+                                <th class="fw-bold border-0">SUCURSAL</th>
+                                <th class="fw-bold border-0 text-end">CORRELATIVO</th>
+                            </tr>
+                        </thead>
+                        <tbody tbody>
+                            @for (s of series(); track s.id_serie) {
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ s.serie }}</td>
+                                    <td>{{ etiquetaTipo(s.tipo) }}</td>
+                                    <td>{{ s.sucursal }}</td>
+                                    <td class="text-end">{{ s.correlativo_actual }}</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </app-table-pro>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ng-template #detTpl>
+    @if (detalle(); as d) {
+        <div class="modal-header">
+            <h5 class="modal-title">{{ etiquetaTipo(d.tipo) }} {{ nro(d) }}</h5>
+            <button type="button" class="btn-close" (click)="cerrarModal()"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-2"><span [class]="badgeEstado(d.estado)">{{ d.estado }}</span></div>
+            <div class="text-muted-erp text-xs-erp mb-3">{{ d.sucursal }} · {{ d.fecha_emision | date:'short' }}</div>
+            <div>Cliente: {{ d.razon_social_cliente }}</div>
+            <div class="text-muted-erp">Doc {{ d.tipo_doc_cliente }} {{ d.num_doc_cliente || '-' }}</div>
+            @for (i of d.items; track i.id_comprobante_item) {
+                <div class="d-flex justify-content-between border-bottom-dashed-erp py-2">
+                    <span>{{ i.cantidad | number:'1.0-2' }} × {{ i.descripcion }}</span>
+                    <span>S/ {{ i.total | number:'1.2-2' }}</span>
+                </div>
+            }
+            <div class="d-flex justify-content-between mt-2"><span>OP. gravada</span><span>S/ {{ d.op_gravada | number:'1.2-2' }}</span></div>
+            <div class="d-flex justify-content-between"><span>IGV</span><span>S/ {{ d.igv | number:'1.2-2' }}</span></div>
+            <div class="d-flex justify-content-between fw-bold"><span>Total</span><span>S/ {{ d.total | number:'1.2-2' }}</span></div>
+            @if (d.ose_mensaje) {
+                <div class="text-muted-erp text-xs-erp mt-2">{{ d.ose_mensaje }}</div>
+            }
+        </div>
+        <div class="modal-footer">
+            <a class="btn-file" href="#" title="PDF A4" (click)="abrirPdf(d.id_comprobante, $event)">
+                <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
+            </a>
+            <a class="btn-file" href="#" title="Ticket 80mm" (click)="abrirTicket(d.id_comprobante, $event)">
+                <i class="bi bi-receipt text-dark fs-4"></i>
+            </a>
+            @if (perms.hasPermission('ver_xml')) {
+                <a class="btn-file" href="#" title="XML" (click)="descargarXml(d.id_comprobante, 'xml'); $event.preventDefault()">
+                    <i class="bi bi-filetype-xml text-primary fs-4"></i>
+                </a>
+                <a class="btn-file" href="#" title="CDR" (click)="descargarXml(d.id_comprobante, 'cdr'); $event.preventDefault()">
+                    <i class="bi bi-file-earmark-zip-fill text-success fs-4"></i>
+                </a>
+            }
+            <button type="button" class="btn btn-primary" (click)="cerrarModal()">CERRAR</button>
+        </div>
+    }
+</ng-template>
+
+<ng-template #anularTpl>
+    @if (anularTarget(); as row) {
+        <div class="modal-header">
+            <h5 class="modal-title">Anular {{ nro(row) }}</h5>
+            <button type="button" class="btn-close" (click)="cerrarModal()"></button>
+        </div>
+        <div class="modal-body">
+            <form [formGroup]="ncForm" class="row g-3">
+                @if (row.estado === 'ACEPTADO') {
+                    <div class="col-12 text-muted-erp text-xs-erp">
+                        Un comprobante aceptado se anula con nota de crédito (mismo correlativo original no se borra).
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Serie NC</label>
+                        <ng-select class="ng-select-sm" [items]="seriesNc()" bindLabel="serie" bindValue="id_serie"
+                                   formControlName="id_serie" placeholder="Serie NC" appendTo="body"
+                                   [searchable]="true" [clearable]="false" notFoundText="Sin series NC">
+                        </ng-select>
+                    </div>
+                }
+                <div class="col-12">
+                    <label class="form-label">Motivo</label>
+                    <input type="text" class="form-control" formControlName="motivo" maxlength="200">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-soft-neutral" (click)="cerrarModal()">Cancelar</button>
+            <button type="button" class="btn btn-danger" (click)="confirmarAnular()">CONFIRMAR</button>
+        </div>
+    }
+</ng-template>

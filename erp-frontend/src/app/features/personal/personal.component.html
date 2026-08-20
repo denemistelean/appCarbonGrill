@@ -1,0 +1,156 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+        <app-table-pro titulo="Personal" subtitulo="Asignación de sucursal y función (sin alterar usuarios del núcleo)"
+            [showAddBtn]="false" [loading]="crud.tableLoading()"
+            [data]="crud.resource().data" [meta]="crud.resource().meta"
+            (pageChange)="crud.cambiarPagina($event)" (search)="onSearch($event)">
+
+            <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                <tr>
+                    <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                    <th class="fw-bold border-0">TRABAJADOR</th>
+                    <th class="fw-bold border-0">USUARIO</th>
+                    <th class="fw-bold border-0 text-center">FUNCIÓN</th>
+                    <th class="fw-bold border-0">SUCURSAL</th>
+                    <th class="text-center border-0" style="width: 140px;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody tbody>
+                @for (item of crud.resource().data; track item.id_usuario) {
+                    <tr class="main-row align-middle fila-animada">
+                        <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_usuario }}</div></td>
+                        <td class="fw-bold text-erp text-uppercase">{{ item.nombres }} {{ item.apellidos }}</td>
+                        <td class="text-muted-erp">{{ item.correo }}</td>
+                        <td class="text-center">
+                            <span class="badge-erp badge-secondary border-0">
+                                <i class="bi bi-person-badge me-1"></i>{{ item.rol }}
+                            </span>
+                        </td>
+                        <td class="text-muted-erp">{{ item.sucursal || 'Sin sucursal' }}</td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                @if (perms.hasPermission('asignar_personal')) {
+                                    <button type="button" class="btn-action-edit" title="Asignar sucursal / función"
+                                            (click)="abrirAsignar(modalAsignar, item)">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </button>
+                                }
+                                @if (perms.hasPermission('ver_historial_personal')) {
+                                    <button type="button" class="btn-action-edit" title="Historial"
+                                            (click)="abrirHistorial(modalHistorial, item)">
+                                        <i class="bi bi-clock-history"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                } @empty {
+                    <tr><td colspan="6" class="text-center py-5 text-muted-erp">No hay personal registrado.</td></tr>
+                }
+            </tbody>
+        </app-table-pro>
+    </div>
+</div>
+
+<ng-template #modalAsignar let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-person-badge-fill"></i></div>
+            Reasignar personal
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+
+    <div class="modal-body p-4 bg-card">
+        <p class="text-muted-erp mb-3">
+            {{ trabajadorSeleccionado()?.nombres }} {{ trabajadorSeleccionado()?.apellidos }}
+            ({{ trabajadorSeleccionado()?.correo }})
+        </p>
+        <form [formGroup]="form" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Sucursal <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm"
+                           [items]="sucursales()"
+                           bindLabel="nombre"
+                           bindValue="id_sucursal"
+                           formControlName="id_sucursal"
+                           placeholder="Buscar sucursal..."
+                           appendTo="body"
+                           [searchable]="true"
+                           [clearable]="true"
+                           notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="form.get('id_sucursal')"></app-form-error>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Función <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm"
+                           [items]="roles()"
+                           bindLabel="nombre"
+                           bindValue="id_rol"
+                           formControlName="id_rol"
+                           placeholder="Buscar función..."
+                           appendTo="body"
+                           [searchable]="true"
+                           [clearable]="true"
+                           notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="form.get('id_rol')"></app-form-error>
+            </div>
+        </form>
+        <p class="small text-muted-erp mt-3 mb-0">
+            El cambio queda en el historial. El trabajador debe volver a iniciar sesión para aplicar el nuevo rol.
+            Funciones: MOZO, CAJA, COCINA, BAR y ADMIN_SUCURSAL.
+        </p>
+    </div>
+
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardar()" [disabled]="form.invalid">
+            <i class="bi bi-save me-1"></i> GUARDAR
+        </button>
+    </div>
+</ng-template>
+
+<ng-template #modalHistorial let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-clock-history"></i></div>
+            Historial de {{ trabajadorSeleccionado()?.nombres }} {{ trabajadorSeleccionado()?.apellidos }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+
+    <div class="modal-body p-4 bg-card">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr class="text-uppercase text-muted">
+                        <th>Desde</th>
+                        <th>Hasta</th>
+                        <th>Sucursal</th>
+                        <th>Función</th>
+                        <th>Asignó</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (h of historial(); track h.id_asignacion) {
+                        <tr>
+                            <td>{{ h.vigente_desde | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td>{{ h.vigente_hasta ? (h.vigente_hasta | date:'dd/MM/yyyy HH:mm') : 'Vigente' }}</td>
+                            <td>{{ h.sucursal }}</td>
+                            <td>{{ h.rol }}</td>
+                            <td>{{ h.asignado_por }}</td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="5" class="text-center text-muted-erp py-4">Sin historial.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-footer bg-erp border-top-dashed-erp">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CERRAR</button>
+    </div>
+</ng-template>

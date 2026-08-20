@@ -1,0 +1,88 @@
+<!-- LOGO -->
+<div class="sidebar-logo">
+  <div class="d-flex align-items-center gap-2">
+    @if (!logoError()) {
+      <img src="assets/img/logo.png" alt="Logo" class="sidebar-logo-img" (error)="logoError.set(true)">
+    } @else {
+      <i class="bi bi-geo-alt-fill logo-icon"></i>
+    }
+    <div>
+      <div class="logo-text">CARBON GRILL</div>
+      <div class="logo-sub">Sistema de gestión</div>
+    </div>
+  </div>
+  <button class="btn btn-sm text-white d-lg-none p-0" (click)="layoutService.toggleSidebar()">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+
+<!-- BÚSQUEDA -->
+<div class="sidebar-search">
+  <div class="search-wrapper">
+    <i class="bi bi-search"></i>
+    <input [formControl]="searchControl" placeholder="Buscar módulo...">
+  </div>
+</div>
+
+<!-- MENÚ -->
+<div class="sidebar-menu-area custom-scroll">
+
+  @for (item of filteredMenu(); track item.label) {
+
+    @if (item.type === 'link') {
+      <a [routerLink]="item.route"
+         [class.is-active]="isExactActive(item.route)"
+         (click)="checkMobileClose()"
+         class="menu-item">
+        <i [class]="'bi ' + item.icon + ' menu-icon'"></i>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+
+    @if (item.type === 'dropdown') {
+      <div class="menu-group">
+        <div class="menu-item menu-group-toggle"
+             [class.is-active-parent]="item.active || isChildActive(item)"
+             (click)="toggleSubmenu(item)">
+          <i [class]="'bi ' + item.icon + ' menu-icon'"></i>
+          <span>{{ item.label }}</span>
+          <i class="bi bi-chevron-right menu-arrow" [class.open]="item.active"></i>
+        </div>
+        <div class="menu-sub" [class.show]="item.active">
+          @for (sub of item.children; track sub.route || sub.label) {
+            <a [routerLink]="sub.route"
+               [class.is-active]="isExactActive(sub.route)"
+               class="menu-sub-item"
+               (click)="checkMobileClose()">
+              <span class="sub-dot"></span>
+              {{ sub.label }}
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+  }
+
+</div>
+
+<!-- FOOTER USUARIO -->
+<div class="sidebar-footer">
+  <div class="d-flex align-items-center gap-2">
+    <div class="user-avatar">
+      {{ usuarioActual ? ((usuarioActual.nombres?.[0] || '') + (usuarioActual.apellidos?.[0] || '')) : 'AD' }}
+    </div>
+    <div class="flex-grow-1 overflow-hidden">
+      <div class="user-name text-truncate">
+        {{ usuarioActual ? (usuarioActual.nombres + ' ' + usuarioActual.apellidos) : 'Admin Sistema' }}
+      </div>
+      <div class="user-role">
+        <span class="online-dot"></span>
+        {{ usuarioActual?.nombre_rol || 'En Línea' }}
+      </div>
+    </div>
+    <button class="logout-btn" title="Cerrar Sesión" (click)="logout()">
+      <i class="bi bi-box-arrow-right"></i>
+    </button>
+  </div>
+</div>

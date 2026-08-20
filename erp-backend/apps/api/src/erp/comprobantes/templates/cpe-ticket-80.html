@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 11px;
+      color: #000;
+      width: 72mm;
+      margin: 0 auto;
+      padding: 3mm 2mm 2mm;
+    }
+    .c { text-align: center; }
+    .b { font-weight: 700; }
+    .logo {
+      max-height: 70px;
+      max-width: 180px;
+      object-fit: contain;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .sep { border-top: 1px dashed #000; margin: 6px 0; }
+    .row { display: flex; justify-content: space-between; gap: 4px; }
+    .small { font-size: 10px; line-height: 1.25; }
+    .item { margin: 5px 0; }
+    .item .desc { word-break: break-word; }
+    .tot .row { margin: 2px 0; }
+    .qr { margin-top: 8px; page-break-inside: avoid; }
+    .qr img { width: 110px; height: 110px; display: inline-block; }
+    .hash { font-size: 8px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="c">{{logo_img}}</div>
+  <div class="c b">{{empresa_razon}}</div>
+  <div class="c small">R.U.C.: {{empresa_ruc}}</div>
+  <div class="c small">{{empresa_direccion}}</div>
+  <div class="c small">{{empresa_ubigeo}}</div>
+  <div class="c small">Telf.: {{empresa_telefono}}</div>
+  <div class="c small">{{empresa_email}}</div>
+  <div class="c small">{{empresa_web}}</div>
+
+  <div class="sep"></div>
+  <div class="c b">{{tipo_comprobante_label}}</div>
+  <div class="c b">{{serie}} - {{correlativo}}</div>
+  <div class="sep"></div>
+
+  <div class="small">Fecha de Emisión: {{fecha_emision}}</div>
+  <div class="small">Razón Social: {{cliente_razon}}</div>
+  <div class="small">Doc: {{cliente_documento}}</div>
+  <div class="small">Dirección: {{cliente_direccion}}</div>
+  <div class="small">Forma de pago: {{forma_pago}}</div>
+  <div class="small">N° de placa: {{placa}}</div>
+
+  <div class="sep"></div>
+  <div class="row b small"><span>Cant.</span><span>Descripción</span><span>Importe</span></div>
+  <div class="sep"></div>
+
+  {{#items}}
+  <div class="item small">
+    <div class="row">
+      <span>{{cantidad}}</span>
+      <span class="desc" style="flex:1;padding:0 4px;">{{descripcion}}</span>
+      <span>{{importe}}</span>
+    </div>
+    <div class="small">{{codigo}} · {{unidad}} · P.U. {{precio_unitario}}</div>
+  </div>
+  {{/items}}
+
+  <div class="sep"></div>
+  <div class="tot small">
+    <div class="row"><span>Gravada:</span><span>S/ {{gravada}}</span></div>
+    <div class="row"><span>IGV (18.00%):</span><span>S/ {{igv}}</span></div>
+    <div class="row"><span>Descuento Total:</span><span>S/ {{descuento}}</span></div>
+    <div class="row b"><span>Total:</span><span>S/ {{total}}</span></div>
+  </div>
+  <div class="sep"></div>
+  <div class="small b">Importe en Letras:</div>
+  <div class="small">{{importe_letras}}</div>
+  <div class="sep"></div>
+  <div class="c small">Representación Impresa de la {{tipo_comprobante_label}}</div>
+  <div class="c hash">HASH: {{hash}}</div>
+  <div class="c small">VENDEDOR: {{vendedor}}</div>
+  <div class="c small">Venta #{{id_venta}}</div>
+  <div class="c qr">{{qr_img}}</div>
+</body>
+</html>

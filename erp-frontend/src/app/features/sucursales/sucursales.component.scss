@@ -1,0 +1,58 @@
+.filtro-tipo-chip {
+  border-radius: var(--rad-pill);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.filtro-todos {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  &.active { background: #475569; color: #fff; border-color: #475569; }
+}
+
+.filtro-local {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  &.active { background: #059669; color: #fff; border-color: #059669; }
+}
+
+.filtro-almacen {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  &.active { background: #d97706; color: #fff; border-color: #d97706; }
+}
+
+.badge-tipo-local {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-tipo-almacen {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tipo-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--rad-pill);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tipo-hint-local {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.tipo-hint-almacen {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}

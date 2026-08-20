@@ -1,0 +1,133 @@
+<div class="carta-root" [class.menu-open]="menuAbierto()">
+  <header class="carta-header">
+    <div class="header-top">
+      <button type="button" class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuAbierto() ? 'Cerrar menú' : 'Abrir menú'">
+        <i class="bi" [class.bi-list]="!menuAbierto()" [class.bi-x-lg]="menuAbierto()"></i>
+      </button>
+      <div class="header-brand">
+        <span class="logo-fire">🔥</span>
+        <h1>{{ config().nombre || 'Carbón Grill & Burgers' }}</h1>
+      </div>
+      <div class="header-spacer"></div>
+    </div>
+    @if (config().tagline) {
+      <p class="subtitle">{{ config().tagline }}</p>
+    }
+    @if (config().promo) {
+      <div class="promo-banner">{{ config().promo }}</div>
+    }
+    <div class="search-box">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
+               placeholder="Buscar plato, corte, trago o bebida...">
+      </div>
+    </div>
+  </header>
+
+  <!-- Overlay para cerrar menú en mobile -->
+  @if (menuAbierto()) {
+    <div class="menu-backdrop" (click)="toggleMenu()"></div>
+  }
+
+  <!-- Sidebar de categorías -->
+  <aside class="cat-sidebar" [class.open]="menuAbierto()">
+    <div class="cat-sidebar-header">Categorías</div>
+    <button type="button" class="cat-item" [class.active]="categoria() === 'all'" (click)="setCategoria('all')">
+      <span class="cat-icon">🌟</span> Toda la Carta
+    </button>
+    @for (c of categorias(); track c.codigo) {
+      <button type="button" class="cat-item" [class.active]="categoria() === c.codigo" (click)="setCategoria(c.codigo)">
+        <span class="cat-icon">{{ c.icono }}</span> {{ c.nombre }}
+      </button>
+    }
+  </aside>
+
+  <main class="container-carta">
+    <!-- Categoría activa como chip (cuando menú está cerrado) -->
+    @if (!menuAbierto() && categoria() !== 'all') {
+      <div class="active-filter">
+        <span>{{ iconoCategoria() }} {{ nombreCategoria() }}</span>
+        <button type="button" (click)="setCategoria('all')" title="Ver toda la carta">&times;</button>
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="empty">Cargando carta...</p>
+    } @else if (error()) {
+      <p class="empty">{{ error() }}</p>
+    } @else {
+      @if (mostrarSabores()) {
+        <div class="info-badge-box">
+          <div class="info-badge-title">Sabores disponibles para Alitas & Boneless</div>
+          <div class="tag-cloud">
+            @for (s of sabores(); track s) {
+              <span class="tag-item">{{ s }}</span>
+            }
+          </div>
+        </div>
+      }
+      @if (mostrarChorizos()) {
+        <div class="info-badge-box">
+          <div class="info-badge-title">Chorizos a tu elección en parrillas</div>
+          <div class="tag-cloud">
+            @for (c of chorizos(); track c) {
+              <span class="tag-item gold">{{ c }}</span>
+            }
+          </div>
+        </div>
+      }
+
+      @for (cat of categoriasConItems(); track cat.codigo) {
+        <div class="section-title">{{ cat.icono }} {{ cat.nombre }}</div>
+        <div class="menu-grid">
+          @for (item of itemsDe(cat.codigo); track item.id_producto) {
+            <article class="card-plato" [class.unavailable]="!item.disponible">
+              <div class="card-top">
+                @if (urlFoto(item)) {
+                  <img [src]="urlFoto(item)" class="card-thumb" [alt]="item.nombre" (click)="abrirFoto(item)">
+                }
+                <div class="card-info">
+                  <div class="card-title">{{ item.nombre }}</div>
+                  <div class="card-desc">{{ item.descripcion }}</div>
+                </div>
+              </div>
+              <div class="card-footer">
+                <div class="card-price">{{ config().moneda || 'S/' }} {{ item.precio | number:'1.2-2' }}</div>
+                @if (urlFoto(item)) {
+                  <button type="button" class="btn-view-photo" (click)="abrirFoto(item)">
+                    <i class="bi bi-camera"></i>
+                  </button>
+                } @else if (item.disponible) {
+                  <span class="estado-msg">Disponible</span>
+                } @else {
+                  <span class="estado-msg off">Agotado</span>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+
+      @if (!categoriasConItems().length && !loading()) {
+        <p class="empty">No se encontraron platos que coincidan con la búsqueda.</p>
+      }
+    }
+  </main>
+</div>
+
+@if (foto(); as f) {
+  <div class="modal-overlay" (click)="cerrarFoto()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ f.nombre }}</h2>
+        <button type="button" class="close-btn" (click)="cerrarFoto()">&times;</button>
+      </div>
+      <img [src]="urlFoto(f)" class="img-preview-large" [alt]="f.nombre">
+      <p style="font-size:0.85rem;color:#bbb;text-align:center;margin-bottom:8px;">{{ f.descripcion }}</p>
+      <div style="font-size:1.3rem;font-weight:800;color:#ffb703;text-align:center;">
+        {{ config().moneda || 'S/' }} {{ f.precio | number:'1.2-2' }}
+      </div>
+    </div>
+  </div>
+}

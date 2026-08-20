@@ -1,0 +1,73 @@
+.mesa-mapa {
+  position: relative;
+  background: linear-gradient(180deg, rgba(var(--bs-secondary-rgb), 0.06), transparent);
+  border: 1px dashed var(--erp-border, #dee2e6);
+  border-radius: var(--erp-radius, 12px);
+  overflow: hidden;
+  padding: 72px 52px 80px;
+}
+
+.mesa-mapa-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+  height: 56vh;
+}
+
+.mesa-card {
+  position: absolute;
+  min-width: 88px;
+  min-height: 72px;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease;
+}
+
+.mesa-card:active {
+  transform: translate(-50%, -50%) scale(0.97);
+}
+
+.mesa-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.mesa-mapa.organizando .mesa-card {
+  cursor: grab;
+}
+
+.mesa-card.dragging {
+  cursor: grabbing;
+  z-index: 8;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.mesa-libre { background: #d1e7dd; border-color: #198754; color: #0f5132; }
+.mesa-ocupada { background: #ffe5d0; border-color: #fd7e14; color: #984c0c; }
+.mesa-esperando_confirmacion { background: #fff3cd; border-color: #ffc107; color: #664d03; }
+.mesa-comiendo { background: #cfe2ff; border-color: #0d6efd; color: #084298; }
+.mesa-pidiendo_cuenta { background: #e2d9f3; border-color: #6f42c1; color: #432874; }
+.mesa-limpieza { background: #e9ecef; border-color: #6c757d; color: #343a40; }
+
+.leyenda-item {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+@media (min-width: 768px) {
+  .mesa-mapa-canvas { min-height: 500px; }
+  .mesa-card { min-width: 96px; min-height: 80px; }
+}
+
+@media (max-width: 575px) {
+  .mesa-mapa { padding: 56px 24px 64px; }
+  .mesa-mapa-canvas { height: 62vh; }
+}

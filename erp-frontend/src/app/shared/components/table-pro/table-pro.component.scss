@@ -1,0 +1,47 @@
+/* Estilos de paginación cubiertos por styles.scss (sección 7 y fix :focus) */
+
+/* Header del componente */
+.table-header-row {
+    min-width: 0;
+    gap: 12px;
+}
+
+.table-title-col {
+    min-width: 0;
+}
+
+/* En celular el buscador ocupa el espacio disponible (flex-grow-1 en el HTML);
+   recién a partir de md (≥768px) vuelve al ancho fijo de escritorio. */
+.search-sniper-group {
+    width: 100%;
+}
+@media (min-width: 768px) {
+    .search-sniper-group {
+        width: 250px;
+    }
+}
+
+/* Barra de progreso de carga */
+.table-loading-bar {
+    height: 3px;
+    border-radius: 0;
+    background-color: var(--erp-border-soft);
+
+    .progress-bar {
+        background: linear-gradient(90deg, var(--erp-primary), var(--erp-secondary));
+    }
+}
+
+/* Footer de paginación */
+.table-pagination-footer {
+    border-top: 1px solid var(--erp-border-soft);
+}
+
+/* Bootstrap table CSS vars — sobreescriben el tema claro hardcodeado */
+::ng-deep .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--erp-text);
+    --bs-table-hover-bg: var(--erp-btn-soft-bg);
+    --bs-table-hover-color: var(--erp-text);
+    --bs-table-border-color: var(--erp-border-soft);
+}

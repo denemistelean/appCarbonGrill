@@ -1,0 +1,131 @@
+/* --- 1. DÍAS PERSONALIZADOS --- */
+.custom-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 !important;
+    margin: 0 auto;
+    height: 1.4rem;
+    width: 1.4rem;
+    line-height: 1.4rem;
+    font-size: var(--fs-body);
+    border-radius: var(--rad-sm);
+    cursor: pointer;
+    transition: var(--trans-base);
+    color: var(--erp-text);
+}
+
+.custom-day:hover, .custom-day.focused {
+    background-color: rgba(var(--erp-primary-rgb), 0.1);
+    color: var(--erp-primary);
+    font-weight: var(--fw-bold);
+}
+
+.custom-day.faded {
+    background-color: rgba(var(--erp-primary-rgb), 0.15) !important;
+    border-radius: 0 !important;
+    color: var(--erp-primary) !important;
+    font-weight: var(--fw-bold);
+    box-shadow: none !important;
+}
+
+.custom-day.range {
+    background-color: var(--erp-primary) !important;
+    color: var(--erp-white) !important;
+    border-radius: var(--rad-sm) !important;
+    box-shadow: 0 2px 6px rgba(var(--erp-primary-rgb), 0.4);
+    font-weight: var(--fw-bold);
+}
+
+.pe-none {
+    pointer-events: none;
+    background-color: var(--erp-input-bg) !important;
+}
+
+/* --- 2. ESTRUCTURA NATIVA NGB-BOOTSTRAP --- */
+::ng-deep ngb-datepicker {
+    border: 1px solid var(--erp-border-soft) !important;
+    border-radius: var(--rad-md) !important;
+    background-color: var(--erp-card) !important;
+    box-shadow: 0 10px 25px rgba(var(--erp-shadow-rgb), 0.15) !important;
+    font-family: 'Inter', sans-serif;
+    padding: 0.25rem !important;
+}
+
+::ng-deep .ngb-dp-header {
+    background-color: transparent !important;
+    padding: 0.2rem 0 !important;
+}
+
+::ng-deep .ngb-dp-month-name {
+    font-size: var(--fs-md) !important;
+    font-weight: var(--fw-bold) !important;
+    background-color: transparent !important;
+    color: var(--erp-text) !important;
+    padding: 0.25rem 0 !important;
+    height: auto !important;
+}
+
+::ng-deep .ngb-dp-navigation-select > select {
+    font-size: var(--fs-body) !important;
+    padding: 0.1rem 1.2rem 0.1rem 0.5rem !important;
+    height: 1.75rem !important;
+    border-color: var(--erp-border-input) !important;
+    border-radius: var(--rad-sm) !important;
+}
+
+::ng-deep .ngb-dp-arrow-btn {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+::ng-deep .ngb-dp-day,
+::ng-deep .ngb-dp-weekday {
+    width: 1.6rem !important;
+    height: 1.6rem !important;
+    font-size: var(--fs-sm) !important;
+}
+
+::ng-deep .ngb-dp-weekday {
+    color: var(--erp-primary) !important;
+    font-weight: var(--fw-heavy) !important;
+    text-transform: uppercase;
+    font-style: normal !important;
+}
+
+::ng-deep .ngb-dp-weekdays {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--erp-border-soft) !important;
+}
+
+::ng-deep .ngb-dp-month {
+    background-color: transparent !important;
+}
+
+::ng-deep .ngb-dp-today .custom-day:not(.range):not(.faded)::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background-color: var(--erp-primary);
+}
+
+/* --- 3. MODO OSCURO --- */
+::ng-deep body.dark-mode ngb-datepicker {
+    background-color: var(--erp-dropdown-bg) !important;
+    border-color: var(--erp-border-soft) !important;
+}
+
+::ng-deep body.dark-mode .ngb-dp-navigation-select > select {
+    background-color: var(--erp-input-bg) !important;
+    color: var(--erp-text) !important;
+    border-color: var(--erp-border-soft) !important;
+}

@@ -1,0 +1,189 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3 animate__animated animate__fadeInUp">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <span class="text-muted-erp small text-uppercase fw-bold me-1">Filtrar por tipo:</span>
+            @for (f of filtrosTipo; track f.id) {
+                <button type="button" class="btn btn-sm filtro-tipo-chip" [class]="f.clase"
+                        [class.active]="filtroTipo() === f.id"
+                        (click)="setFiltroTipo(f.id)">
+                    <i class="bi {{ f.icon }} me-1"></i>{{ f.label }}
+                </button>
+            }
+        </div>
+        <p class="small text-muted-erp mb-0">
+            <span class="tipo-hint tipo-hint-local">LOCAL</span> = atención al cliente (mesas, caja).
+            <span class="tipo-hint tipo-hint-almacen ms-2">ALMACÉN</span> = solo inventario, no opera salón.
+        </p>
+    </div>
+
+    <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+        <app-table-pro titulo="Sucursales" subtitulo="Locales de atención y almacenes (el almacén no opera mesas ni caja)" btnText="NUEVA SUCURSAL"
+            [showAddBtn]="perms.hasPermission('crear_sucursal')" [loading]="crud.tableLoading()"
+            [data]="crud.resource().data" [meta]="crud.resource().meta"
+            (add)="abrirModal(modalFormulario)" (pageChange)="crud.cambiarPagina($event)" (search)="onSearch($event)">
+
+            <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                <tr>
+                    <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                    <th class="fw-bold border-0">CÓDIGO</th>
+                    <th class="fw-bold border-0">NOMBRE</th>
+                    <th class="fw-bold border-0">TIPO</th>
+                    <th class="fw-bold border-0">RUC</th>
+                    <th class="fw-bold border-0">DIRECCIÓN</th>
+                    <th class="fw-bold border-0">TELÉFONO</th>
+                    <th class="fw-bold border-0">EST. SUNAT</th>
+                    <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody tbody>
+                @for (item of crud.resource().data; track item.id_sucursal) {
+                    <tr class="main-row align-middle fila-animada">
+                        <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_sucursal }}</div></td>
+                        <td class="fw-bold text-erp">{{ item.codigo }}</td>
+                        <td class="fw-bold text-erp text-uppercase">{{ item.nombre }}</td>
+                        <td>
+                          @if (item.tipo === 'ALMACEN') {
+                            <span class="badge-erp badge-tipo-almacen"><i class="bi bi-box-seam me-1"></i>ALMACÉN</span>
+                          } @else {
+                            <span class="badge-erp badge-tipo-local"><i class="bi bi-shop me-1"></i>LOCAL</span>
+                          }
+                        </td>
+                        <td class="text-muted-erp">{{ item.ruc || '—' }}</td>
+                        <td class="text-muted-erp">{{ item.direccion || 'Sin dirección' }}</td>
+                        <td class="text-muted-erp">{{ item.telefono || 'Sin teléfono' }}</td>
+                        <td class="text-muted-erp">{{ item.codigo_establecimiento_sunat || '—' }}</td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                @if (perms.hasPermission('actualizar_sucursal')) {
+                                    <button type="button" class="btn-action-edit" (click)="abrirModal(modalFormulario, item)">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                }
+                                @if (perms.hasPermission('eliminar_sucursal')) {
+                                    <button type="button" class="btn-action-delete" (click)="crud.deleteItem(item.id_sucursal)">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                } @empty {
+                    <tr><td colspan="9" class="text-center py-5 text-muted-erp">No hay sucursales registradas.</td></tr>
+                }
+            </tbody>
+        </app-table-pro>
+    </div>
+</div>
+
+<ng-template #modalFormulario let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-buildings-fill"></i></div>
+            {{ crud.editingId() ? 'Editar Sucursal' : 'Nueva Sucursal' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="form" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Código <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="codigo"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('codigo')"></app-form-error>
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">Nombre <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('nombre')"></app-form-error>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Tipo <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm"
+                           [items]="tipos"
+                           bindLabel="nombre"
+                           bindValue="id"
+                           formControlName="tipo"
+                           [searchable]="false"
+                           [clearable]="false"
+                           appendTo="body"
+                           notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="form.get('tipo')"></app-form-error>
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">Dirección</label>
+                <input type="text" class="form-control" formControlName="direccion">
+                <app-form-error [control]="form.get('direccion')"></app-form-error>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" formControlName="telefono">
+                <app-form-error [control]="form.get('telefono')"></app-form-error>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Cód. establecimiento SUNAT</label>
+                <input type="text" class="form-control" formControlName="codigo_establecimiento_sunat"
+                       maxlength="4" placeholder="0000">
+                <app-form-error [control]="form.get('codigo_establecimiento_sunat')"></app-form-error>
+            </div>
+
+            <div class="col-12"><hr class="my-1"><div class="fw-bold text-erp">Facturación electrónica (por local)</div>
+                <small class="text-muted-erp">En pruebas use el RUC beta de SUNAT (20481099936). En producción cada local usará su RUC real y Nubefact.</small>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">RUC emisor</label>
+                <input type="text" class="form-control" formControlName="ruc" maxlength="11" placeholder="11 dígitos">
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Razón social</label>
+                <input type="text" class="form-control text-uppercase" formControlName="razon_social">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nombre comercial</label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombre_comercial">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Dirección fiscal</label>
+                <input type="text" class="form-control" formControlName="direccion_fiscal">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ubigeo</label>
+                <input type="text" class="form-control" formControlName="ubigeo" maxlength="6">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Departamento</label>
+                <input type="text" class="form-control text-uppercase" formControlName="departamento">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Provincia</label>
+                <input type="text" class="form-control text-uppercase" formControlName="provincia">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Distrito</label>
+                <input type="text" class="form-control text-uppercase" formControlName="distrito">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nubefact URL</label>
+                <input type="text" class="form-control" formControlName="nubefact_url" placeholder="https://...">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nubefact token</label>
+                <input type="password" class="form-control" formControlName="nubefact_token" autocomplete="new-password">
+            </div>
+        </form>
+    </div>
+
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardar()" [disabled]="form.invalid">
+            <i class="bi bi-save me-1"></i> GUARDAR
+        </button>
+    </div>
+</ng-template>

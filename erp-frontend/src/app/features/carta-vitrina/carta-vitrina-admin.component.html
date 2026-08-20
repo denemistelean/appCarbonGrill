@@ -1,0 +1,252 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+                <h5 class="m-0 fw-bold erp-title-section">
+                    <span class="icon-badge me-2"><i class="bi bi-journal-richtext"></i></span>
+                    Carta visual pública
+                </h5>
+                <span class="text-muted-erp text-xs-erp">
+                    Distinta de la carta QR de mesa. El público la ve en
+                    <a [href]="cartaUrl" target="_blank">{{ cartaUrl }}</a>
+                </span>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-soft-neutral" (click)="copiarUrl()">Copiar enlace</button>
+                <a class="btn btn-sm btn-primary" [href]="cartaUrl" target="_blank">Ver carta</a>
+            </div>
+        </div>
+    </div>
+
+    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'negocio') {
+        <div class="card-pro p-3">
+            <form [formGroup]="cfgForm" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre del restaurante</label>
+                    <input class="form-control" formControlName="nombre">
+                    <app-form-error [control]="cfgForm.get('nombre')"></app-form-error>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Moneda</label>
+                    <input class="form-control" formControlName="moneda">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Subtítulo</label>
+                    <input class="form-control" formControlName="tagline">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Promoción / anuncio</label>
+                    <input class="form-control" formControlName="promo">
+                </div>
+                @if (perms.hasPermission('gestionar_carta_visual')) {
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" (click)="guardarNegocio()">Guardar</button>
+                    </div>
+                }
+            </form>
+        </div>
+    }
+
+    @if (tab() === 'etiquetas') {
+        <div class="card-pro p-3 mb-3">
+            <form [formGroup]="tagForm" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Tipo</label>
+                    <ng-select class="ng-select-sm" [items]="tiposTag" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="tipo" appendTo="body" [searchable]="true" [clearable]="false"
+                               notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">Nombre</label>
+                    <input class="form-control" formControlName="nombre" placeholder="Ej. BBQ Picante">
+                    <app-form-error [control]="tagForm.get('nombre')"></app-form-error>
+                </div>
+                @if (perms.hasPermission('gestionar_carta_visual')) {
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-primary w-100" (click)="crearTag()">Agregar</button>
+                    </div>
+                }
+            </form>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Sabores de alitas</h6>
+                    @for (t of tags(); track t.id_tag) {
+                        @if (t.tipo === 'SABOR') {
+                            <div class="d-flex justify-content-between py-1 border-bottom-dashed-erp">
+                                <span>{{ t.nombre }}</span>
+                                @if (perms.hasPermission('gestionar_carta_visual')) {
+                                    <button type="button" class="btn btn-sm btn-link text-danger" (click)="borrarTag(t)">Quitar</button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-pro p-3">
+                    <h6 class="fw-bold text-erp">Chorizos a elección</h6>
+                    @for (t of tags(); track t.id_tag) {
+                        @if (t.tipo === 'CHORIZO') {
+                            <div class="d-flex justify-content-between py-1 border-bottom-dashed-erp">
+                                <span>{{ t.nombre }}</span>
+                                @if (perms.hasPermission('gestionar_carta_visual')) {
+                                    <button type="button" class="btn btn-sm btn-link text-danger" (click)="borrarTag(t)">Quitar</button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (tab() === 'platos') {
+        <div class="card-pro mb-3 p-3">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Filtrar</label>
+                    <input class="form-control" [value]="filtro()" (input)="filtro.set($any($event.target).value)"
+                           placeholder="Nombre o categoría">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Visibilidad</label>
+                    <select class="form-select" [value]="visibilidad()" (change)="visibilidad.set($any($event.target).value)">
+                        <option value="todos">Todos</option>
+                        <option value="visibles">En la carta</option>
+                        <option value="ocultos">Ocultos</option>
+                    </select>
+                </div>
+                @if (perms.hasPermission('gestionar_carta_visual')) {
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-primary w-100" (click)="abrirProducto(prodTpl)">Nuevo plato</button>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="card-pro table-pro-container p-0 p-md-3">
+            <app-table-pro titulo="Carta visual" subtitulo="Fotos, precios y disponibilidad se reflejan en /carta"
+                [hideSearch]="true" [showAddBtn]="false" [loading]="loading()" [data]="filtrados()"
+                [meta]="{ total: filtrados().length, page: 1, limit: 999 }">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">PLATO</th>
+                        <th class="fw-bold border-0">CATEGORÍA</th>
+                        <th class="fw-bold border-0 text-end">PRECIO</th>
+                        <th class="fw-bold border-0">ESTADO</th>
+                        <th class="text-center border-0"></th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (p of filtrados(); track p.id_producto) {
+                        <tr [class.opacity-50]="!p.visible_carta">
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    @if (urlFoto(p)) {
+                                        <img [src]="urlFoto(p)" alt="" width="40" height="40" class="rounded" style="object-fit:cover">
+                                    }
+                                    <div>
+                                        <strong>{{ p.nombre }}</strong>
+                                        <div class="text-muted-erp text-xs-erp">{{ p.codigo }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ p.categoria_nombre }}</td>
+                            <td class="text-end">S/ {{ p.precio | number:'1.2-2' }}</td>
+                            <td>
+                                @if (!p.visible_carta) {
+                                    <span class="badge-erp badge-secondary">Oculto</span>
+                                } @else {
+                                    <span class="badge-erp" [class.badge-success]="p.disponible" [class.badge-secondary]="!p.disponible">
+                                        {{ p.disponible ? 'Disponible' : 'Agotado' }}
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-center text-nowrap">
+                                @if (perms.hasPermission('gestionar_carta_visual')) {
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <label class="btn-action-view mb-0" title="Subir o cambiar foto" style="cursor:pointer">
+                                            <i class="bi bi-camera-fill"></i>
+                                            <input type="file" accept="image/*" hidden (change)="onFile(p, $event)">
+                                        </label>
+                                        @if (p.imagen) {
+                                            <button type="button" class="btn-action-delete" title="Quitar foto" (click)="quitarFoto(p)">
+                                                <i class="bi bi-image"></i>
+                                            </button>
+                                        }
+                                        <button type="button" class="btn-action-edit" [title]="p.disponible ? 'Marcar como agotado' : 'Marcar como disponible'" (click)="toggle(p)">
+                                            <i class="bi" [class.bi-check-circle-fill]="p.disponible" [class.bi-slash-circle]="!p.disponible"></i>
+                                        </button>
+                                        <button type="button" class="btn-action-edit" title="Editar" (click)="abrirProducto(prodTpl, p)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                        @if (p.visible_carta) {
+                                            <button type="button" class="btn-action-delete" title="Ocultar de la carta" (click)="quitar(p)">
+                                                <i class="bi bi-eye-slash-fill"></i>
+                                            </button>
+                                        } @else {
+                                            <button type="button" class="btn-action-view" title="Mostrar en la carta" (click)="restaurar(p)">
+                                                <i class="bi bi-eye-fill"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+</div>
+
+<ng-template #prodTpl let-modal>
+    <div class="modal-header">
+        <h5 class="modal-title">{{ prodForm.getRawValue().id_producto ? 'Editar plato' : 'Nuevo plato' }}</h5>
+        <button type="button" class="btn-close" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body">
+        <form [formGroup]="prodForm" class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Categoría</label>
+                <ng-select class="ng-select-sm" [items]="categorias()" bindLabel="nombre" bindValue="id_categoria"
+                           formControlName="id_categoria" appendTo="body" [searchable]="true" [clearable]="false"
+                           placeholder="Buscar..." notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="prodForm.get('id_categoria')"></app-form-error>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" formControlName="nombre">
+                <app-form-error [control]="prodForm.get('nombre')"></app-form-error>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Precio (S/)</label>
+                <input type="number" step="0.50" class="form-control" formControlName="precio">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Estación</label>
+                <ng-select class="ng-select-sm" [items]="estaciones" bindLabel="nombre" bindValue="id"
+                           formControlName="estacion" appendTo="body" [searchable]="true" [clearable]="false"
+                           notFoundText="Sin resultados">
+                </ng-select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" rows="3" formControlName="descripcion"></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">URL de foto (opcional)</label>
+                <input class="form-control" formControlName="imagen_url" placeholder="https://...">
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarProducto(modal)">Guardar</button>
+    </div>
+</ng-template>

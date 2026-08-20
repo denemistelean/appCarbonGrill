@@ -1,0 +1,86 @@
+﻿<div class="d-flex w-100 h-100 overflow-hidden">
+  
+  <app-sidebar></app-sidebar>
+  <app-settings-panel></app-settings-panel>
+  <app-toast></app-toast>
+  
+  @if (layoutService.isLoading()) {
+    <div class="global-top-progress-bar"></div>
+  }
+
+  <div class="layout-main-content flex-grow-1 d-flex flex-column h-100">
+
+    <nav class="app-navbar navbar px-4 py-3 d-flex justify-content-between flex-shrink-0">
+      <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-soft-neutral btn-icon"
+                (click)="layoutService.toggleSidebar()">
+          <i class="bi bi-list fs-5"></i>
+        </button>
+
+        <h5 class="m-0 fw-bold unselectable text-main navbar-title">
+          Sistema de Gestión
+        </h5>
+      </div>
+
+      <div class="d-flex gap-3 align-items-center">
+        <div ngbDropdown container="body" placement="bottom-end">
+          <button type="button" class="btn btn-soft-neutral btn-sm d-flex align-items-center gap-2" ngbDropdownToggle>
+            <i class="bi bi-person-circle"></i>
+            <span class="d-none d-md-inline">{{ usuarioLabel }}</span>
+          </button>
+          <div ngbDropdownMenu>
+            <button type="button" ngbDropdownItem (click)="abrirCambiarClave(modalClave)">
+              <i class="bi bi-key me-2"></i> Cambiar clave
+            </button>
+            <div class="dropdown-divider"></div>
+            <button type="button" ngbDropdownItem (click)="cerrarSesion()">
+              <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-soft-neutral btn-icon rounded-circle"
+                (click)="layoutService.toggleSettings()">
+          <i class="bi bi-gear-fill"></i>
+        </button>
+      </div>
+    </nav>
+
+    <main class="flex-grow-1 overflow-auto p-4 custom-scroll">
+      <router-outlet></router-outlet>
+    </main>
+
+  </div>
+</div>
+
+<ng-template #modalClave let-modal>
+  <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+    <h5 class="modal-title fw-bold text-erp">
+      <div class="icon-badge me-2"><i class="bi bi-key"></i></div>
+      Cambiar clave
+    </h5>
+    <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+  </div>
+  <div class="modal-body p-4 bg-card">
+    <form [formGroup]="claveForm" class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Clave actual <span class="req-star">*</span></label>
+        <input type="password" class="form-control" formControlName="clave_actual" autocomplete="current-password">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Nueva clave <span class="req-star">*</span></label>
+        <input type="password" class="form-control" formControlName="clave_nueva" autocomplete="new-password">
+        <small class="text-muted-erp">Mínimo 6 caracteres</small>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Confirmar nueva clave <span class="req-star">*</span></label>
+        <input type="password" class="form-control" formControlName="clave_nueva2" autocomplete="new-password">
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer bg-card border-0">
+    <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="claveForm.invalid" (click)="guardarClave(modal)">
+      Guardar
+    </button>
+  </div>
+</ng-template>

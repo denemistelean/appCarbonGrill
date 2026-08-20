@@ -1,0 +1,144 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper" style="max-width: 1400px;">
+  
+  <div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+      <h5 class="form-section-title border-0 mb-1">
+          <div class="icon-badge"><i class="bi bi-shield-lock-fill"></i></div>
+          Roles y permisos
+      </h5>
+      <p class="text-muted m-0" style="font-size: 0.7rem; margin-left: 44px !important;">
+        1) Cree un rol &nbsp;·&nbsp; 2) Selecciónelo &nbsp;·&nbsp; 3) Marque permisos por módulo &nbsp;·&nbsp; 4) Guarde la matriz
+      </p>
+    </div>
+  </div>
+
+  <div class="card-pro mb-4 p-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <label class="form-label text-muted small fw-bold m-0">ROL A CONFIGURAR</label>
+      @if (puedeCrearRol()) {
+        <button type="button" class="btn btn-primary btn-sm" (click)="abrirModalRol(modalRol)">
+          <i class="bi bi-plus-circle-fill me-1"></i> CREAR NUEVO ROL
+        </button>
+      }
+    </div>
+    <div class="d-flex gap-2 align-items-start">
+      <div class="flex-grow-1">
+        <ng-select
+            [items]="roles()"
+            bindLabel="nombre"
+            bindValue="id_rol"
+            [(ngModel)]="rolSelectModel"
+            [ngModelOptions]="{standalone: true}"
+            placeholder="Seleccione un perfil (Ej: Vendedor, Almacén...)"
+            (change)="onRolChange($event)"
+            class="fw-bold">
+        </ng-select>
+      </div>
+      @if (rolSeleccionado()) {
+        <div class="d-flex gap-2">
+          @if (puedeActualizarRol() && !esRolAdmin()) {
+            <button type="button" class="btn-action-edit" title="Editar nombre del rol" (click)="abrirModalRol(modalRol, rolActual())">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+          }
+          @if (puedeEliminarRol() && !esRolAdmin()) {
+            <button type="button" class="btn-action-delete" title="Eliminar rol" (click)="eliminarRol(rolActual())">
+              <i class="bi bi-trash3-fill"></i>
+            </button>
+          }
+        </div>
+      }
+    </div>
+    @if (esRolAdmin()) {
+      <div class="alert alert-warning mt-3 mb-0 py-2 small">
+        El rol SUPERADMIN siempre tiene todos los permisos y no se puede modificar.
+      </div>
+    } @else if (rolSeleccionado()) {
+      <p class="text-muted small mt-3 mb-0">
+        Marque las acciones permitidas por módulo y pulse <strong>Guardar matriz</strong>.
+      </p>
+    }
+  </div>
+
+  @if (rolSeleccionado() && !esRolAdmin()) {
+    <div class="row g-4 animate__animated animate__fadeInUp">
+      @for (modulo of modulos(); track modulo.id_modulo) {
+        <div class="col-md-6 col-lg-4">
+          <div class="card-pro h-100 p-0 border-0 shadow-sm" style="overflow: hidden;">
+            <div class="card-header-pro bg-light bg-opacity-50 d-flex justify-content-between align-items-center">
+              <h6 class="m-0 fw-bold text-primary-erp text-uppercase" style="font-size: 0.8rem;">
+                <i class="bi bi-box-seam me-2"></i>{{ modulo.etiqueta }}
+              </h6>
+              @if (puedeActualizarRol() && modulo.acciones.length) {
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                        (click)="toggleModuloCompleto(modulo)">
+                  {{ moduloCompletoMarcado(modulo) ? 'Quitar todos' : 'Marcar todos' }}
+                </button>
+              }
+            </div>
+            <div class="card-body-pro p-3">
+              @for (accion of modulo.acciones; track accion.id_accion) {
+                <div class="form-check form-switch mb-3 custom-switch-premium">
+                  <input
+                    class="form-check-input cursor-pointer"
+                    type="checkbox"
+                    [id]="'check_' + accion.id_accion"
+                    [checked]="isMarcado(accion.id_accion)"
+                    [disabled]="!puedeActualizarRol()"
+                    (change)="toggleAccion(accion.id_accion, $any($event.target).checked)">
+                  <label class="form-check-label cursor-pointer ms-2 w-100" [for]="'check_' + accion.id_accion">
+                    <span class="d-block fw-bold text-dark" style="font-size: 0.75rem;">{{ accion.descripcion }}</span>
+                    <span class="d-block text-muted font-numeric mt-1" style="font-size: 0.65rem;">{{ accion.codigo }}</span>
+                  </label>
+                </div>
+              }
+              @if (modulo.acciones.length === 0) {
+                <p class="text-muted small m-0 fst-italic">No hay acciones configurables.</p>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (puedeActualizarRol()) {
+      <div class="position-sticky bottom-0 mt-4 py-3 bg-card border-top shadow-lg d-flex justify-content-end px-4" style="border-radius: 12px; z-index: 100;">
+        <button class="btn btn-primary px-5 py-2 shadow-sm" (click)="guardarMatriz()">
+          <i class="bi bi-save me-2"></i> GUARDAR MATRIZ DE PERMISOS
+        </button>
+      </div>
+    }
+  }
+</div>
+
+<ng-template #modalRol let-modal>
+  <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+    <h5 class="modal-title fw-bold text-erp">
+      <div class="icon-badge me-2"><i class="bi bi-shield-lock-fill"></i></div>
+      {{ editingRolId() ? 'Editar Rol' : 'Nuevo Rol' }}
+    </h5>
+    <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+  </div>
+
+  <div class="modal-body p-4 bg-card">
+    <form [formGroup]="formRol" class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Nombre del Rol <span class="req-star">*</span></label>
+        <input type="text" class="form-control text-uppercase" formControlName="nombre"
+               oninput="this.value = this.value.toUpperCase()">
+        <app-form-error [control]="formRol.get('nombre')"></app-form-error>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Descripción</label>
+        <textarea class="form-control" rows="2" formControlName="descripcion"></textarea>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+    <button type="button" class="btn btn-primary" (click)="guardarRol()" [disabled]="formRol.invalid">
+      <i class="bi bi-save me-1"></i> GUARDAR
+    </button>
+  </div>
+</ng-template>

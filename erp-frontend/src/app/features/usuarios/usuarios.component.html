@@ -1,0 +1,121 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <div class="card-pro table-pro-container mb-3 p-0 p-md-3 animate__animated animate__fadeInUp">
+        <app-table-pro titulo="Usuarios del Sistema" subtitulo="Gestión de cuentas y accesos" btnText="NUEVO USUARIO"
+            [showAddBtn]="perms.hasPermission('crear_usuario')" [loading]="crud.tableLoading()"
+            [data]="crud.resource().data" [meta]="crud.resource().meta"
+            (add)="abrirModal(modalFormulario)" (pageChange)="crud.cambiarPagina($event)" (search)="onSearch($event)">
+
+            <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                <tr>
+                    <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
+                    <th class="fw-bold border-0">NOMBRES Y APELLIDOS</th>
+                    <th class="fw-bold border-0">CORREO</th>
+                    <th class="fw-bold border-0 text-center">ROL</th>
+                    <th class="fw-bold border-0 text-center">ESTADO</th>
+                    <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody tbody>
+                @for (item of crud.resource().data; track item.id_usuario) {
+                    <tr class="main-row align-middle fila-animada">
+                        <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_usuario }}</div></td>
+                        <td class="fw-bold text-erp text-uppercase">{{ item.nombres }} {{ item.apellidos }}</td>
+                        <td class="text-muted-erp">{{ item.correo }}</td>
+                        <td class="text-center">
+                            <span class="badge-erp badge-secondary border-0">
+                                <i class="bi bi-shield-check me-1"></i>{{ item.nombre_rol || item.rol }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            @if (item.estado_registro === 'ACTIVO') {
+                                <span class="badge-erp badge-success">ACTIVO</span>
+                            } @else {
+                                <span class="badge-erp badge-danger">{{ item.estado_registro }}</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                @if (perms.hasPermission('actualizar_usuario')) {
+                                    <button type="button" class="btn-action-edit" (click)="abrirModal(modalFormulario, item)">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                }
+                                @if (perms.hasPermission('eliminar_usuario') && item.id_usuario !== 1) {
+                                    <button type="button" class="btn-action-delete" (click)="crud.deleteItem(item.id_usuario)">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                } @empty {
+                    <tr><td colspan="6" class="text-center py-5 text-muted-erp">No hay usuarios registrados.</td></tr>
+                }
+            </tbody>
+        </app-table-pro>
+    </div>
+</div>
+
+<ng-template #modalFormulario let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-person-bounding-box"></i></div>
+            {{ crud.editingId() ? 'Editar Usuario' : 'Nuevo Usuario' }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+
+    <div class="modal-body p-4 bg-card">
+        <form [formGroup]="form" class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Nombres <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="nombres"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('nombres')"></app-form-error>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Apellidos <span class="req-star">*</span></label>
+                <input type="text" class="form-control text-uppercase" formControlName="apellidos"
+                       oninput="this.value = this.value.toUpperCase()">
+                <app-form-error [control]="form.get('apellidos')"></app-form-error>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Correo Electrónico <span class="req-star">*</span></label>
+                <input type="email" class="form-control" formControlName="correo">
+                <app-form-error [control]="form.get('correo')"></app-form-error>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Rol del Sistema <span class="req-star">*</span></label>
+                <ng-select class="ng-select-sm" [items]="roles()" bindLabel="nombre" bindValue="id_rol"
+                           formControlName="id_rol" placeholder="Buscar rol..." appendTo="body"
+                           [searchable]="true" [clearable]="true" notFoundText="Sin resultados">
+                </ng-select>
+                <app-form-error [control]="form.get('id_rol')"></app-form-error>
+            </div>
+
+            @if (!crud.editingId()) {
+                <div class="col-md-6">
+                    <label class="form-label">Contraseña <span class="req-star">*</span></label>
+                    <input type="password" class="form-control" formControlName="password" placeholder="Mínimo 6 caracteres">
+                    <app-form-error [control]="form.get('password')"></app-form-error>
+                </div>
+            } @else {
+                <div class="col-md-6">
+                    <label class="form-label">Nueva contraseña (opcional)</label>
+                    <input type="password" class="form-control" formControlName="password" placeholder="Dejar vacío para no cambiar">
+                    <app-form-error [control]="form.get('password')"></app-form-error>
+                </div>
+            }
+        </form>
+    </div>
+
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardar()">
+            <i class="bi bi-save me-1"></i> GUARDAR
+        </button>
+    </div>
+</ng-template>

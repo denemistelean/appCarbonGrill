@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #111;
+      margin: 0;
+      padding: 18px 22px;
+    }
+    .top {
+      display: flex;
+      gap: 16px;
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+    .brand { flex: 1.2; }
+    .brand-row { display: flex; gap: 12px; align-items: flex-start; }
+    .brand .logo {
+      max-height: 72px;
+      max-width: 140px;
+      object-fit: contain;
+      display: block;
+    }
+    .brand h1 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      line-height: 1.15;
+      text-transform: uppercase;
+    }
+    .brand .muted { color: #444; font-size: 10px; line-height: 1.35; }
+    .box-ruc {
+      flex: 0.9;
+      border: 2px solid #1a1a1a;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .box-ruc .ruc { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .box-ruc .tipo { font-size: 13px; font-weight: 700; text-transform: uppercase; }
+    .box-ruc .nro { font-size: 16px; font-weight: 800; margin-top: 4px; letter-spacing: 0.5px; }
+    .meta {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 8px 14px;
+      margin-bottom: 10px;
+    }
+    .meta .label { color: #555; font-size: 10px; }
+    .meta .value { font-weight: 700; }
+    .cliente {
+      border: 1px solid #bbb;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+    .cliente .row { margin: 2px 0; }
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    table.items th {
+      background: #1f2937;
+      color: #fff;
+      font-size: 10px;
+      padding: 6px 5px;
+      text-align: left;
+    }
+    table.items td {
+      border-bottom: 1px solid #ddd;
+      padding: 6px 5px;
+      vertical-align: top;
+    }
+    table.items .num { text-align: right; white-space: nowrap; }
+    .bottom {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .bottom .left { flex: 1.3; }
+    .bottom .right { flex: 0.8; }
+    .totales {
+      border: 1px solid #bbb;
+      padding: 8px 10px;
+    }
+    .totales .line {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+    }
+    .totales .total {
+      border-top: 2px solid #111;
+      margin-top: 6px;
+      padding-top: 6px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .letras { font-weight: 700; margin: 8px 0; }
+    .bancos {
+      border: 1px dashed #999;
+      padding: 8px;
+      font-size: 10px;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+    .footer {
+      margin-top: 14px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .footer .qr img { width: 96px; height: 96px; }
+    .footer .info { font-size: 9.5px; color: #333; line-height: 1.4; }
+    .hash { word-break: break-all; font-family: Consolas, monospace; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">
+      <div class="brand-row">
+        <div>{{logo_img}}</div>
+        <div>
+          <h1>{{empresa_razon}}</h1>
+          <div class="muted">{{empresa_direccion}}</div>
+          <div class="muted">{{empresa_ubigeo}}</div>
+          <div class="muted">Telf: {{empresa_telefono}} · Email: {{empresa_email}}</div>
+          <div class="muted">{{empresa_web}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="box-ruc">
+      <div class="ruc">R.U.C.: {{empresa_ruc}}</div>
+      <div class="tipo">{{tipo_comprobante_label}}</div>
+      <div class="nro">Nro. {{serie}} - {{correlativo}}</div>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div>
+      <div class="label">Fecha de Emisión</div>
+      <div class="value">{{fecha_emision}}</div>
+    </div>
+    <div>
+      <div class="label">Forma de Pago</div>
+      <div class="value">{{forma_pago}}</div>
+    </div>
+    <div>
+      <div class="label">Moneda</div>
+      <div class="value">{{moneda}}</div>
+    </div>
+  </div>
+
+  <div class="cliente">
+    <div class="row"><strong>R.U.C. / Doc.:</strong> {{cliente_documento}}</div>
+    <div class="row"><strong>Razón Social:</strong> {{cliente_razon}}</div>
+    <div class="row"><strong>Dirección:</strong> {{cliente_direccion}}</div>
+    <div class="row"><strong>Placa N°:</strong> {{placa}} &nbsp;·&nbsp; <strong>Guía Remisión:</strong> {{guia_remision}}</div>
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:36px">ITEM</th>
+        <th style="width:90px">CÓDIGO</th>
+        <th>DESCRIPCIÓN</th>
+        <th style="width:70px">UNID.</th>
+        <th style="width:70px" class="num">CANT.</th>
+        <th style="width:90px" class="num">P.UNITARIO</th>
+        <th style="width:90px" class="num">TOTAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#items}}
+      <tr>
+        <td>{{item}}</td>
+        <td>{{codigo}}</td>
+        <td>{{descripcion}}</td>
+        <td>{{unidad}}</td>
+        <td class="num">{{cantidad}}</td>
+        <td class="num">S/ {{precio_unitario}}</td>
+        <td class="num">S/ {{importe}}</td>
+      </tr>
+      {{/items}}
+    </tbody>
+  </table>
+
+  <div class="bottom">
+    <div class="left">
+      <div class="letras">{{importe_letras}}</div>
+      <div class="bancos">
+        <strong>USTED PUEDE HACER PAGOS DIRECTAMENTE EN NUESTRAS CUENTAS:</strong><br/>
+        BANCO: {{banco_nombre}}<br/>
+        TITULAR: {{banco_titular}}<br/>
+        NRO CUENTA (SOLES): {{banco_cuenta}}<br/>
+        CCI: {{banco_cci}}
+      </div>
+    </div>
+    <div class="right">
+      <div class="totales">
+        <div class="line"><span>Gravada:</span><span>S/ {{gravada}}</span></div>
+        <div class="line"><span>IGV (18.00%):</span><span>S/ {{igv}}</span></div>
+        <div class="line"><span>Descuento Total:</span><span>S/ {{descuento}}</span></div>
+        <div class="line total"><span>Total:</span><span>S/ {{total}}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="qr">{{qr_img}}</div>
+    <div class="info">
+      Autorizado mediante la resolución Nº {{resolucion_sunat}}<br/>
+      Representación impresa de la {{tipo_comprobante_label}}<br/>
+      HASH: <span class="hash">{{hash}}</span><br/>
+      Atendido Por: {{vendedor}}<br/>
+      Venta #{{id_venta}}
+    </div>
+  </div>
+</body>
+</html>

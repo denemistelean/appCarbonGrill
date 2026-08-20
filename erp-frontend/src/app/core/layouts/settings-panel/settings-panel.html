@@ -1,0 +1,191 @@
+﻿<div class="settings-overlay" 
+     [class.open]="layoutService.settingsOpen()" 
+     (click)="layoutService.toggleSettings()">
+</div>
+
+<div class="settings-drawer" [class.open]="layoutService.settingsOpen()">
+  
+  <div class="drawer-header">
+    <div class="d-flex align-items-center gap-2">
+        <div class="icon-box">
+            <i class="bi bi-sliders"></i>
+        </div>
+        <div>
+            <h6 class="m-0 fw-bold">Configuración</h6>
+            <small class="text-muted-erp">Personaliza tu experiencia</small>
+        </div>
+    </div>
+    <button class="btn-close-drawer" (click)="layoutService.toggleSettings()">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <div class="drawer-body custom-scroll">
+    
+    <section class="mb-4">
+      <label class="section-label">Apariencia</label>
+      <div class="theme-switch-wrapper">
+        <button type="button" class="switch-option" 
+                [class.active]="!layoutService.darkMode()"
+                (click)="setDarkMode(false)">
+          <i class="bi bi-sun-fill text-warning-erp"></i>
+          <span>Claro</span>
+        </button>
+        
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.darkMode()"
+                (click)="setDarkMode(true)">
+          <i class="bi bi-moon-stars-fill text-primary-erp"></i>
+          <span>Oscuro</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <label class="section-label">Atmósfera (Fondo)</label>
+      <div class="theme-switch-wrapper">
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.bgStyle() === 'neutral'"
+                (click)="layoutService.setBgStyle('neutral')">
+          <i class="bi bi-circle"></i>
+          <span>Neutral</span>
+        </button>
+        
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.bgStyle() === 'tinted'"
+                (click)="layoutService.setBgStyle('tinted')">
+          <i class="bi bi-droplet-half"></i>
+          <span>Tintado</span>
+        </button>
+
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.bgStyle() === 'deep'"
+                (click)="layoutService.setBgStyle('deep')">
+          <i class="bi bi-layers-fill"></i>
+          <span>Profundo</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <label class="section-label">Geometría (Bordes)</label>
+      <div class="theme-switch-wrapper">
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.radiusStyle() === 'sharp'" 
+                (click)="layoutService.setRadiusStyle('sharp')">
+          <i class="bi bi-app"></i>
+          <span>Recto</span>
+        </button>
+        
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.radiusStyle() === 'medium'" 
+                (click)="layoutService.setRadiusStyle('medium')">
+          <i class="bi bi-app-indicator"></i>
+          <span>Suave</span>
+        </button>
+
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.radiusStyle() === 'round'" 
+                (click)="layoutService.setRadiusStyle('round')">
+          <i class="bi bi-circle"></i>
+          <span>Curvo</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <label class="section-label">Efecto Cristal</label>
+      <div class="theme-switch-wrapper">
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.glassStyle() === 'none'" 
+                (click)="layoutService.setGlassStyle('none')">
+          <i class="bi bi-slash-circle"></i>
+          <span>Off</span>
+        </button>
+        
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.glassStyle() === 'soft'" 
+                (click)="layoutService.setGlassStyle('soft')">
+          <i class="bi bi-snow2"></i>
+          <span>Soft</span>
+        </button>
+
+        <button type="button" class="switch-option" 
+                [class.active]="layoutService.glassStyle() === 'strong'" 
+                (click)="layoutService.setGlassStyle('strong')">
+          <i class="bi bi-gem"></i>
+          <span>Strong</span>
+        </button>
+      </div>
+    </section>
+
+    <hr class="separator">
+
+    <section class="mb-4">
+      <label class="section-label">Tema de Color</label>
+      
+      <small class="theme-category-title">Corporativo</small>
+      <div class="theme-grid mb-4">
+        @for (theme of themes; track theme.id) {
+          @if (theme.type === 'corporate') {
+            <div class="theme-item" 
+                 [class.selected]="currentTheme.id === theme.id"
+                 (click)="selectTheme(theme)"
+                 [style.--theme-color]="theme.colors.primary"
+                 [style.--theme-secondary]="theme.colors.secondary"
+                 [style.--theme-tertiary]="theme.colors.tertiary">
+              <div class="color-swatch dual" [style.background]="'conic-gradient(' + theme.colors.primary + ' 0deg 216deg, ' + theme.colors.secondary + ' 216deg 270deg, ' + theme.colors.tertiary + ' 270deg 324deg, ' + theme.colors.quaternary + ' 324deg 360deg)'">
+                   @if (currentTheme.id === theme.id) { <i class="bi bi-check-lg"></i> }
+              </div>
+              <span class="theme-name">{{ theme.name }}</span>
+            </div>
+          }
+        }
+      </div>
+
+      <small class="theme-category-title">Vibrante & Dual</small>
+      <div class="theme-grid mb-4">
+        @for (theme of themes; track theme.id) {
+          @if (theme.type === 'dual') {
+            <div class="theme-item" 
+                 [class.selected]="currentTheme.id === theme.id"
+                 (click)="selectTheme(theme)"
+                 [style.--theme-color]="theme.colors.primary"
+                 [style.--theme-secondary]="theme.colors.secondary"
+                 [style.--theme-tertiary]="theme.colors.tertiary"> 
+              <div class="color-swatch dual" [style.background]="'conic-gradient(' + theme.colors.primary + ' 0deg 216deg, ' + theme.colors.secondary + ' 216deg 270deg, ' + theme.colors.tertiary + ' 270deg 324deg, ' + theme.colors.quaternary + ' 324deg 360deg)'"> 
+                   @if (currentTheme.id === theme.id) { <i class="bi bi-check-lg"></i> }
+              </div>
+              <span class="theme-name">{{ theme.name }}</span>
+            </div>
+          }
+        }
+      </div>
+
+      <small class="theme-category-title">Minimalista</small>
+      <div class="theme-grid">
+        @for (theme of themes; track theme.id) {
+          @if (theme.type === 'independent') {
+            <div class="theme-item" 
+                 [class.selected]="currentTheme.id === theme.id"
+                 (click)="selectTheme(theme)"
+                 [style.--theme-color]="theme.colors.primary"
+                 [style.--theme-secondary]="theme.colors.secondary"
+                 [style.--theme-tertiary]="theme.colors.tertiary"> 
+              <div class="color-swatch dual" [style.background]="'conic-gradient(' + theme.colors.primary + ' 0deg 216deg, ' + theme.colors.secondary + ' 216deg 270deg, ' + theme.colors.tertiary + ' 270deg 324deg, ' + theme.colors.quaternary + ' 324deg 360deg)'"> 
+                   @if (currentTheme.id === theme.id) { <i class="bi bi-check-lg"></i> }
+              </div>
+              <span class="theme-name">{{ theme.name }}</span>
+            </div>
+          }
+        }
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="drawer-footer">
+    <small class="text-muted-erp opacity-50">v2.5.0 - GGJP</small>
+  </div>
+</div>

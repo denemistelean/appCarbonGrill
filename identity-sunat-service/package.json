@@ -1,0 +1,20 @@
+{
+  "name": "identity-sunat-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microservicio Consulta RUC/DNI vía SUNAT (Playwright). Consumido por Carbon Grill IDENTITY_PROVIDER=http",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "postinstall": "npx playwright install chromium"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "playwright": "^1.51.0"
+  }
+}

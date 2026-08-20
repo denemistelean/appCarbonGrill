@@ -1,0 +1,15 @@
+.pos-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; }
+.pos-cats { display: flex; flex-wrap: wrap; gap: .4rem; }
+.pos-card {
+  border: 1px solid var(--erp-border, #e5e7eb);
+  border-radius: .5rem;
+  padding: .6rem .7rem;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+}
+.pos-card:hover { border-color: var(--erp-primary, #b45309); }
+.pos-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .6rem; }
+@media (max-width: 992px) {
+  .pos-grid { grid-template-columns: 1fr; }
+}

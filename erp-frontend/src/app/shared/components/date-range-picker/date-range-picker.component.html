@@ -1,0 +1,28 @@
+<label class="form-label">{{ label }}</label>
+<div class="input-group" (click)="dp.open()" style="cursor: pointer;">
+    <span class="input-group-text border-end-0">
+        <i class="bi bi-calendar-range text-primary-erp"></i>
+    </span>
+    
+    <input class="form-control border-start-0 pe-none" 
+           placeholder="Seleccionar rango..."
+           name="dp"
+           [value]="rangoFechasTexto()"
+           ngbDatepicker 
+           #dp="ngbDatepicker"
+           [autoClose]="'outside'"
+           [displayMonths]="mesesVisibles" 
+           [dayTemplate]="t"
+           outsideDays="hidden"
+           (dateSelect)="onDateSelection($event, dp)"> </div>
+
+<ng-template #t let-date let-focused="focused">
+    <span class="custom-day"
+          [class.focused]="focused"
+          [class.range]="isRange(date)"
+          [class.faded]="isHovered(date) || isInside(date)"
+          (mouseenter)="hoveredDate = date"
+          (mouseleave)="hoveredDate = null">
+        {{ date.day }}
+    </span>
+</ng-template>

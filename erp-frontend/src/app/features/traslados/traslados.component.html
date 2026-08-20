@@ -1,0 +1,374 @@
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+
+    @if (tab() === 'lista') {
+        <div class="card-pro mb-3 p-3">
+            <form [formGroup]="filtros" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <ng-select class="ng-select-sm" [items]="estados()" formControlName="estado" placeholder="Todos"
+                               appendTo="body" [searchable]="false" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tipo</label>
+                    <ng-select class="ng-select-sm" [items]="tipos()" bindLabel="etiqueta" bindValue="codigo"
+                               formControlName="tipo" placeholder="Todos" appendTo="body"
+                               [searchable]="false" [clearable]="true">
+                    </ng-select>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-primary w-100" (click)="filtrar()">FILTRAR</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
+            <app-table-pro titulo="Traslados de insumos"
+                subtitulo="Distribución almacén→local y transferencias entre locales"
+                [hideSearch]="true" [showAddBtn]="false" [loading]="loading()" [data]="lista()" [meta]="meta()"
+                (pageChange)="cambiarPagina($event)">
+                <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
+                    <tr>
+                        <th class="ps-3 fw-bold border-0">#</th>
+                        <th class="fw-bold border-0">TIPO</th>
+                        <th class="fw-bold border-0">ORIGEN → DESTINO</th>
+                        <th class="fw-bold border-0">ESTADO</th>
+                        <th class="fw-bold border-0">FECHA</th>
+                        <th class="fw-bold border-0">ÍTEMS</th>
+                        <th class="text-center border-0" style="width: 80px;"></th>
+                    </tr>
+                </thead>
+                <tbody tbody>
+                    @for (row of lista(); track row.id_traslado) {
+                        <tr class="main-row align-middle fila-animada">
+                            <td class="ps-3 fw-bold text-erp">#{{ row.id_traslado }}</td>
+                            <td><span class="badge-erp badge-secondary">{{ etiquetaTipo(row.tipo) }}</span></td>
+                            <td>
+                                <div class="fw-bold text-erp">{{ row.origen }}</div>
+                                <small class="text-muted-erp">→ {{ row.destino }}</small>
+                            </td>
+                            <td><span class="badge-erp" [class]="claseEstado(row.estado)">{{ etiquetaEstado(row.estado) }}</span></td>
+                            <td>{{ row.fecha_solicitud | date:'short' }}</td>
+                            <td class="text-center">{{ row.items }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn-action-edit" title="Ver detalle" (click)="abrirDetalle(modalDetalle, row)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr><td colspan="7" class="text-center py-5 text-muted-erp">No hay traslados registrados.</td></tr>
+                    }
+                </tbody>
+            </app-table-pro>
+        </div>
+    }
+
+    @if (tab() === 'nuevo') {
+        @if (perms.hasPermission('solicitar_traslado')) {
+            <div class="card-pro p-3">
+                <form [formGroup]="form">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo <span class="req-star">*</span></label>
+                            <ng-select class="ng-select-sm" [items]="tipos()" bindLabel="etiqueta" bindValue="codigo"
+                                       formControlName="tipo" appendTo="body" [searchable]="false" [clearable]="false"
+                                       (change)="onTipoChange()">
+                            </ng-select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Origen <span class="req-star">*</span></label>
+                            <ng-select class="ng-select-sm"
+                                       [items]="form.get('tipo')?.value === 'DISTRIBUCION' ? almacenes() : locales()"
+                                       bindLabel="nombre" bindValue="id_sucursal" formControlName="id_origen"
+                                       placeholder="Seleccione..." appendTo="body" [searchable]="true" [clearable]="true"
+                                       (change)="onOrigenChange()">
+                            </ng-select>
+                            <app-form-error [control]="form.get('id_origen')"></app-form-error>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Destino (local) <span class="req-star">*</span></label>
+                            <ng-select class="ng-select-sm" [items]="locales()" bindLabel="nombre" bindValue="id_sucursal"
+                                       formControlName="id_destino" placeholder="Seleccione..." appendTo="body"
+                                       [searchable]="true" [clearable]="true">
+                            </ng-select>
+                            <app-form-error [control]="form.get('id_destino')"></app-form-error>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Motivo / observación</label>
+                            <input type="text" class="form-control" formControlName="motivo" placeholder="Opcional">
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-erp mb-3">Insumos a trasladar</h6>
+                    <div formArrayName="items">
+                        @for (item of itemsArray.controls; track $index; let i = $index) {
+                            <div class="row g-3 align-items-end mb-2" [formGroupName]="i">
+                                <div class="col-md-5">
+                                    <label class="form-label">Insumo <span class="req-star">*</span></label>
+                                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                               formControlName="id_insumo" placeholder="Buscar..." appendTo="body"
+                                               [searchable]="true" [clearable]="true" (change)="onInsumoOrigenChange(i)">
+                                    </ng-select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Cantidad <span class="req-star">*</span></label>
+                                    <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad_enviada"
+                                           [class.is-invalid]="itemSinStock(i)">
+                                    @if (item.get('stock_origen')?.value != null) {
+                                        <small [class.text-danger]="itemSinStock(i)" [class.text-muted-erp]="!itemSinStock(i)">
+                                            Stock en origen: {{ item.get('stock_origen')?.value | number:'1.2-4' }}
+                                            @if (itemSinStock(i)) { · insuficiente }
+                                        </small>
+                                    } @else if (form.get('id_origen')?.value) {
+                                        <small class="text-muted-erp">Seleccione insumo para ver stock</small>
+                                    }
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    @if (itemsArray.length > 1) {
+                                        <button type="button" class="btn btn-soft-neutral btn-sm" (click)="quitarItem(i)">Quitar</button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="text-end mb-3">
+                        <button type="button" class="btn btn-soft-neutral me-2" (click)="agregarItem()">
+                            <i class="bi bi-plus-lg me-1"></i> Agregar insumo
+                        </button>
+                    </div>
+                    @if (formularioSinStock()) {
+                        <div class="erp-alert-box erp-alert-danger mb-3">
+                            <div class="erp-alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                            <div class="erp-alert-content">
+                                <p class="erp-alert-body mb-0">Uno o más ítems superan el stock en origen. Registre ingreso en el almacén o ajuste las cantidades.</p>
+                                @if (perms.hasPermission('crear_movimiento')) {
+                                    <button type="button" class="btn btn-sm btn-primary mt-2" (click)="abrirIngresoRapido(modalIngresoRapido, 'nuevo')">
+                                        <i class="bi bi-box-arrow-in-down me-1"></i> Ingreso rápido al origen
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                    <div class="text-end">
+                        <button type="button" class="btn btn-primary" (click)="enviarSolicitud()"
+                                [disabled]="guardando() || formularioSinStock()">
+                            @if (guardando()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                            ENVIAR SOLICITUD
+                        </button>
+                    </div>
+                </form>
+            </div>
+        } @else {
+            <div class="card-pro p-4 text-muted-erp">No tiene permiso para crear solicitudes de traslado.</div>
+        }
+    }
+</div>
+
+<ng-template #modalDetalle let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-truck"></i></div>
+            Traslado #{{ detalle()?.id_traslado }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        @if (detalle(); as d) {
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted-erp">Tipo</small>
+                    <div class="fw-bold">{{ etiquetaTipo(d.tipo) }}</div>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted-erp">Estado</small>
+                    <div><span class="badge-erp" [class]="claseEstado(d.estado)">{{ etiquetaEstado(d.estado) }}</span></div>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted-erp">Origen</small>
+                    <div>{{ d.origen }} ({{ d.tipo_origen }})</div>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted-erp">Destino</small>
+                    <div>{{ d.destino }} ({{ d.tipo_destino }})</div>
+                </div>
+                <div class="col-12">
+                    <small class="text-muted-erp">Solicitante</small>
+                    <div>{{ d.solicitante }}</div>
+                </div>
+                @if (d.motivo) {
+                    <div class="col-12">
+                        <small class="text-muted-erp">Motivo</small>
+                        <div>{{ d.motivo }}</div>
+                    </div>
+                }
+            </div>
+
+            @if (stockInsuficienteDetalle() && ['SOLICITADO','APROBADO'].includes(d.estado)) {
+                <div class="erp-alert-box erp-alert-danger mb-3">
+                    <div class="erp-alert-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <div class="erp-alert-content">
+                        <p class="erp-alert-title mb-1 fw-bold">Stock insuficiente en origen</p>
+                        @for (f of faltantesDetalle(); track f.id_insumo) {
+                            <p class="erp-alert-body mb-0 small">
+                                <strong>{{ f.insumo }}</strong>: hay {{ f.stock_origen | number:'1.2-4' }} {{ f.unidad_codigo }},
+                                se pide {{ f.cantidad_enviada | number:'1.2-4' }} (faltan {{ f.faltante | number:'1.2-4' }})
+                            </p>
+                        }
+                        <p class="erp-alert-body mb-0 mt-2 small text-muted-erp">
+                            Registre ingreso en el almacén de origen o cancele y cree una nueva solicitud con cantidades correctas.
+                        </p>
+                        @if (perms.hasPermission('crear_movimiento')) {
+                            <button type="button" class="btn btn-sm btn-primary mt-2" (click)="abrirIngresoRapido(modalIngresoRapido, 'detalle')">
+                                <i class="bi bi-box-arrow-in-down me-1"></i> Ingreso rápido al origen
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="text-muted text-uppercase">
+                        <tr>
+                            <th>Insumo</th>
+                            @if (['SOLICITADO','APROBADO','EN_TRANSITO'].includes(d.estado)) {
+                                <th class="text-end">Stock origen</th>
+                            }
+                            <th class="text-end">Enviada</th>
+                            <th class="text-end">Recibida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (it of d.items; track it.id_traslado_item) {
+                            <tr [class.table-danger]="it.stock_suficiente == 0 && ['SOLICITADO','APROBADO'].includes(d.estado)">
+                                <td>
+                                    <div class="fw-bold">{{ it.insumo }}</div>
+                                    <small class="text-muted-erp">{{ it.unidad_codigo }}</small>
+                                </td>
+                                @if (['SOLICITADO','APROBADO','EN_TRANSITO'].includes(d.estado)) {
+                                    <td class="text-end" [class.text-danger]="it.stock_suficiente == 0">
+                                        {{ it.stock_origen | number:'1.2-4' }}
+                                    </td>
+                                }
+                                <td class="text-end">{{ it.cantidad_enviada | number:'1.2-4' }}</td>
+                                <td class="text-end">
+                                    @if (it.cantidad_recibida != null) {
+                                        {{ it.cantidad_recibida | number:'1.2-4' }}
+                                    } @else {
+                                        <span class="text-muted-erp">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (d.estado === 'EN_TRANSITO' && perms.hasPermission('recibir_traslado')) {
+                <hr class="my-3">
+                <h6 class="fw-bold text-erp">Confirmar recepción</h6>
+                @for (it of recepcionItems(); track it.id_traslado_item; let i = $index) {
+                    <div class="card-pro p-3 mb-2">
+                        <div class="fw-bold mb-2">{{ it.insumo }} (enviado: {{ it.cantidad_enviada | number:'1.2-4' }} {{ it.unidad_codigo }})</div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Cantidad recibida</label>
+                                <input type="number" class="form-control" min="0" [max]="it.cantidad_enviada" step="0.0001"
+                                       [(ngModel)]="recepcionItems()[i].cantidad_recibida">
+                            </div>
+                            @if (it.cantidad_recibida < it.cantidad_enviada) {
+                                <div class="col-md-4">
+                                    <label class="form-label">Motivo diferencia</label>
+                                    <ng-select class="ng-select-sm" [items]="motivosDiferencia" bindLabel="etiqueta" bindValue="codigo"
+                                               [(ngModel)]="recepcionItems()[i].motivo_diferencia" appendTo="body" [clearable]="false">
+                                    </ng-select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Detalle</label>
+                                    <input type="text" class="form-control" [(ngModel)]="recepcionItems()[i].detalle_diferencia">
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        }
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex flex-wrap justify-content-between gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CERRAR</button>
+        <div class="d-flex flex-wrap gap-2">
+            @if (detalle()?.estado === 'SOLICITADO' && perms.hasPermission('aprobar_traslado')) {
+                <button type="button" class="btn btn-soft-neutral" (click)="accion(detalle()!.id_traslado, 'rechazar', modal)">RECHAZAR</button>
+                <button type="button" class="btn btn-primary" (click)="accion(detalle()!.id_traslado, 'aprobar', modal)"
+                        [disabled]="!puedeAprobarODespachar()"
+                        [title]="stockInsuficienteDetalle() ? mensajeFaltantes() : ''">APROBAR</button>
+            }
+            @if (detalle()?.estado === 'APROBADO' && perms.hasPermission('despachar_traslado')) {
+                <button type="button" class="btn btn-primary" (click)="accion(detalle()!.id_traslado, 'despachar', modal)"
+                        [disabled]="!puedeAprobarODespachar()"
+                        [title]="stockInsuficienteDetalle() ? mensajeFaltantes() : ''">DESPACHAR</button>
+            }
+            @if (detalle()?.estado === 'EN_TRANSITO' && perms.hasPermission('recibir_traslado')) {
+                <button type="button" class="btn btn-primary" (click)="confirmarRecepcion(modal)">CONFIRMAR RECEPCIÓN</button>
+            }
+            @if (['SOLICITADO','APROBADO'].includes(detalle()?.estado || '') && perms.hasPermission('cancelar_traslado')) {
+                <button type="button" class="btn btn-soft-neutral" (click)="accion(detalle()!.id_traslado, 'cancelar', modal)">CANCELAR</button>
+            }
+        </div>
+    </div>
+</ng-template>
+
+<ng-template #modalIngresoRapido let-modal>
+    <div class="modal-header border-bottom-dashed-erp bg-erp px-4 py-3">
+        <h5 class="modal-title fw-bold text-erp">
+            <div class="icon-badge me-2"><i class="bi bi-box-arrow-in-down"></i></div>
+            Ingreso rápido — {{ nombreSucursalIngreso() }}
+        </h5>
+        <button type="button" class="btn-close shadow-none" (click)="modal.dismiss()"></button>
+    </div>
+    <div class="modal-body p-4 bg-card">
+        <p class="text-muted-erp small mb-3">Registre en un solo paso todos los insumos que faltan en origen. Luego podrá aprobar o despachar el traslado.</p>
+        <div class="mb-3">
+            <label class="form-label">Motivo</label>
+            <input type="text" class="form-control text-uppercase" [(ngModel)]="ingresoRapidoMotivo">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="text-muted text-uppercase">
+                    <tr>
+                        <th>Insumo</th>
+                        <th class="text-end" style="width:140px">Cantidad</th>
+                        <th class="text-end" style="width:140px">Costo unit.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (it of ingresoRapidoItems(); track it.id_insumo; let i = $index) {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ it.insumo }}</div>
+                                <small class="text-muted-erp">{{ it.unidad_codigo }}</small>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end" min="0.0001" step="0.0001"
+                                       [(ngModel)]="ingresoRapidoItems()[i].cantidad">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end" min="0" step="0.0001"
+                                       [(ngModel)]="ingresoRapidoItems()[i].costo_unitario">
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CANCELAR</button>
+        <button type="button" class="btn btn-primary" (click)="guardarIngresoRapido(modal)" [disabled]="guardandoIngreso()">
+            @if (guardandoIngreso()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            REGISTRAR {{ ingresoRapidoItems().length }} ÍTEM(S)
+        </button>
+    </div>
+</ng-template>

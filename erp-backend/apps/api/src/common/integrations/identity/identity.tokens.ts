@@ -1,0 +1,2 @@
+export const IDENTITY_SERVICE = Symbol('IDENTITY_SERVICE');
+export const IDENTITY_PROVIDER = Symbol('IDENTITY_PROVIDER');

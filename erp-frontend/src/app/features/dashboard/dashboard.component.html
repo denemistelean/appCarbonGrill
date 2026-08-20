@@ -1,0 +1,69 @@
+<div class="container-fluid p-3 p-md-4 mx-auto" style="max-width: var(--erp-max-width);">
+  <div class="mb-3">
+    <h1 class="h4 fw-bold text-erp mb-1">Dashboard</h1>
+    <p class="text-muted-erp mb-0">Resumen del sistema y operación del día</p>
+  </div>
+
+  @if (loading()) {
+    <div class="card-pro p-3 text-center py-5 text-muted-erp">
+      <span class="spinner-border spinner-border-sm me-2"></span> Cargando...
+    </div>
+  } @else {
+    <div class="row g-3">
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Usuarios activos</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().usuarios_activos || 0 }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Roles</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().roles || 0 }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Módulos</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().modulos || 0 }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Ventas de hoy</div>
+          <div class="fs-4 fw-bold text-erp">S/ {{ (indicadores().ventas_hoy || 0) | number:'1.2-2' }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Ticket promedio</div>
+          <div class="fs-4 fw-bold text-erp">S/ {{ (indicadores().ticket_promedio || 0) | number:'1.2-2' }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Plato más vendido</div>
+          <div class="fs-5 fw-bold text-erp">{{ indicadores().plato_mas_vendido || '—' }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Mesas ocupadas</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().mesas_ocupadas || 0 }} / {{ indicadores().mesas_total || 0 }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">Llamados al mozo</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().llamados_pendientes || 0 }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card-pro p-3">
+          <div class="text-muted-erp text-xs-erp">OSE pendiente</div>
+          <div class="fs-4 fw-bold text-erp">{{ indicadores().comprobantes_pendientes_ose || 0 }}</div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

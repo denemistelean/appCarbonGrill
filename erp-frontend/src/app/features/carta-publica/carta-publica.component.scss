@@ -1,0 +1,86 @@
+.carta-publica {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+  min-height: 100vh;
+  background: #111;
+  color: #f4f1ea;
+  font-family: inherit;
+}
+
+.carta-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.marca { letter-spacing: 0.16em; font-size: 0.7rem; color: #c4a574; }
+.carta-head h1 { font-size: 1.4rem; margin: 0.15rem 0 0; }
+.carta-head small { color: #aaa; }
+.estado {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border: 1px solid #c4a574;
+  color: #c4a574;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+}
+
+.cats { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem; }
+.cats button {
+  border: 1px solid #333;
+  background: #1c1c1c;
+  color: #ddd;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+}
+.cats button.active { background: #c4a574; color: #111; border-color: #c4a574; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.plato {
+  text-align: left;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: inherit;
+  border-radius: 12px;
+  padding: 0.8rem;
+  min-height: 88px;
+}
+.plato:disabled { opacity: 0.45; }
+.nombre { font-weight: 700; text-transform: uppercase; font-size: 0.85rem; }
+.precio { margin-top: 0.4rem; color: #c4a574; font-weight: 700; }
+
+.carrito, .llamar {
+  margin-top: 1.4rem;
+  background: #181818;
+  border-radius: 14px;
+  padding: 1rem;
+}
+h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+.linea { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px dashed #333; }
+.link { background: none; border: 0; color: #c4a574; }
+.total { display: flex; justify-content: space-between; margin: 0.8rem 0; font-size: 1.1rem; }
+.btn-main, .btn-ghost {
+  width: 100%;
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.btn-main { background: #c4a574; border: 0; color: #111; }
+.btn-ghost { margin-top: 0.75rem; background: transparent; border: 1px solid #c4a574; color: #c4a574; }
+.hint, .msg { color: #999; font-size: 0.85rem; }
+.msg.error { color: #f3b0a8; }
+label { display: block; font-size: 0.8rem; margin-bottom: 0.3rem; }
+.mt { margin-top: 0.7rem; }
+input[type='text'] {
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
