@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, HostListene
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { NgSelectModule } from '@ng-select/ng-select';
 import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { interval, finalize, forkJoin } from 'rxjs';
@@ -14,6 +14,8 @@ import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
 import { ErpTabsComponent, ErpTab } from 'src/app/shared/components/erp-tabs/erp-tabs.component';
 import { SalonService } from './salon.service';
+import { SessionContextService } from 'src/app/core/services/session-context.service';
+import { CajaHttpService } from '../caja/caja.service';
 
 type TabSalon = 'mapa' | 'mesas' | 'uniones';
 
@@ -38,10 +40,13 @@ type TabSalon = 'mapa' | 'mesas' | 'uniones';
 export class SalonComponent implements OnInit {
   private fb = inject(FormBuilder);
   private service = inject(SalonService);
+  private caja = inject(CajaHttpService);
   private alert = inject(AlertService);
   private modal = inject(NgbModal);
   private destroyRef = inject(DestroyRef);
+  private router = inject(Router);
   public perms = inject(PermissionsService);
+  private sessionContext = inject(SessionContextService);
 
   private crudService = {
     findAll: (page: number, limit: number, search: string) =>
@@ -66,6 +71,18 @@ export class SalonComponent implements OnInit {
 
   mapa = signal<any[]>([]);
   mapaLoading = signal(false);
+  plano = signal<{
+    tipo_forma: string;
+    puntos: number[][];
+    landmarks: any[];
+  }>({ tipo_forma: 'RECT', puntos: [[0, 0], [100, 0], [100, 100], [0, 100]], landmarks: [] });
+  editandoPlano = signal(false);
+  dibujando = signal(false);
+  draftPoints = signal<number[][]>([]);
+  landmarkPendiente = signal<string | null>(null);
+  landmarkArrastrando = signal<number | null>(null);
+  formasMapa = signal<any[]>([]);
+  tiposLandmark = signal<any[]>([]);
   mesaSeleccionada = signal<any | null>(null);
   mesasParaUnir = signal<any[]>([]);
   llamados = signal<any[]>([]);
@@ -88,6 +105,15 @@ export class SalonComponent implements OnInit {
     { id: 'mesas', label: 'Mesas', icon: 'bi-table' },
     { id: 'uniones', label: 'Uniones', icon: 'bi-link-45deg' },
   ];
+
+  get esTabletMozo(): boolean {
+    return this.sessionContext.esTabletOperativo() && this.sessionContext.nombreRol() === 'MOZO';
+  }
+
+  get tabsVisibles(): ErpTab[] {
+    if (this.esTabletMozo) return this.tabs.filter((t) => t.id === 'mapa');
+    return this.tabs;
+  }
 
   filtrosMapa: FormGroup = this.fb.group({ id_sucursal: [null], zona: [null] });
   mesaModalForm: FormGroup = this.fb.group({
@@ -116,11 +142,26 @@ export class SalonComponent implements OnInit {
         const cat = this.unwrapObject(res.cat);
         this.estados.set(cat.estados || []);
         this.zonas.set(cat.zonas || []);
+        this.formasMapa.set(cat.formas_mapa || [
+          { codigo: 'RECT', etiqueta: 'Rectangular' },
+          { codigo: 'L', etiqueta: 'Forma en L' },
+          { codigo: 'CIRCLE', etiqueta: 'Circular' },
+          { codigo: 'CUSTOM', etiqueta: 'Personalizado' },
+        ]);
+        this.tiposLandmark.set(cat.landmarks || [
+          { codigo: 'TV', etiqueta: 'TV / Pantalla' },
+          { codigo: 'BANO', etiqueta: 'Baño' },
+          { codigo: 'ESCALERA', etiqueta: 'Escalera' },
+          { codigo: 'COCINA', etiqueta: 'Cocina' },
+          { codigo: 'CAJA', etiqueta: 'Caja' },
+          { codigo: 'ENTRADA', etiqueta: 'Entrada' },
+        ]);
         const sucursales = this.unwrapArray(res.suc);
         this.sucursales.set(sucursales);
-        if (sucursales.length === 1) {
+        const idCtx = this.sessionContext.idSucursal();
+        if (sucursales.length === 1 || (this.esTabletMozo && idCtx)) {
           this.sucursalBloqueada.set(true);
-          const id = sucursales[0].id_sucursal;
+          const id = sucursales.length === 1 ? sucursales[0].id_sucursal : idCtx;
           this.idSucursal.set(id);
           this.filtrosMapa.patchValue({ id_sucursal: id });
           this.filtrosMapa.get('id_sucursal')?.disable({ emitEvent: false });
@@ -161,6 +202,7 @@ export class SalonComponent implements OnInit {
 
   toggleOrganizar() {
     if (!this.perms.hasPermission('actualizar_mesa')) return;
+    if (this.editandoPlano()) this.toggleEditarPlano();
     this.organizar.update((v) => !v);
     if (!this.organizar()) this.cargarMapa(true);
   }
@@ -316,7 +358,7 @@ export class SalonComponent implements OnInit {
   }
 
   onMesaClick(mesa: any, modal: TemplateRef<any>) {
-    if (this.organizar() || this.skipClick) {
+    if (this.editandoPlano() || this.organizar() || this.skipClick) {
       this.skipClick = false;
       return;
     }
@@ -340,6 +382,22 @@ export class SalonComponent implements OnInit {
 
   @HostListener('document:pointermove', ['$event'])
   onPointerMove(ev: PointerEvent) {
+    const lmIdx = this.landmarkArrastrando();
+    if (lmIdx != null) {
+      const canvas = this.mapaCanvas()?.nativeElement;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = this.snapPct(((ev.clientX - rect.left) / rect.width) * 100);
+      const y = this.snapPct(((ev.clientY - rect.top) / rect.height) * 100);
+      this.plano.update((p) => {
+        const landmarks = [...(p.landmarks || [])];
+        if (!landmarks[lmIdx]) return p;
+        landmarks[lmIdx] = { ...landmarks[lmIdx], x, y };
+        return { ...p, landmarks };
+      });
+      return;
+    }
+
     if (!this.drag || !this.organizar()) return;
     const canvas = this.mapaCanvas()?.nativeElement;
     if (!canvas) return;
@@ -357,6 +415,12 @@ export class SalonComponent implements OnInit {
   @HostListener('document:pointerup')
   @HostListener('document:pointercancel')
   onPointerUp() {
+    if (this.landmarkArrastrando() != null) {
+      this.landmarkArrastrando.set(null);
+      if (this.editandoPlano()) this.guardarPlano();
+      return;
+    }
+
     if (!this.drag) return;
     const info = this.drag;
     this.drag = null;
@@ -372,7 +436,8 @@ export class SalonComponent implements OnInit {
       pos_y: Math.round(Number(mesa.pos_y)),
     }]).subscribe({
       next: (res) => {
-        const actualizado = this.unwrapArray(res);
+        const data = this.unwrapObject(res);
+        const actualizado = Array.isArray(data?.mesas) ? data.mesas : this.unwrapArray(res);
         if (actualizado.length) this.mapa.set(actualizado);
         this.alert.toast(`Mesa ${mesa.numero} reposicionada.`, 'success');
       },
@@ -430,11 +495,197 @@ export class SalonComponent implements OnInit {
     this.service.mapa(id, raw.zona || undefined)
       .pipe(finalize(() => this.mapaLoading.set(false)))
       .subscribe({
-        next: (res) => this.mapa.set(this.unwrapArray(res)),
+        next: (res) => {
+          const data = this.unwrapObject(res);
+          if (Array.isArray(data)) {
+            this.mapa.set(data);
+            return;
+          }
+          if (data?.plano) {
+            this.plano.set({
+              tipo_forma: data.plano.tipo_forma || 'RECT',
+              puntos: Array.isArray(data.plano.puntos) ? data.plano.puntos : [[2, 2], [98, 2], [98, 98], [2, 98]],
+              landmarks: Array.isArray(data.plano.landmarks) ? data.plano.landmarks : [],
+            });
+          }
+          this.mapa.set(Array.isArray(data?.mesas) ? data.mesas : this.unwrapArray(res));
+        },
         error: (e) => {
           if (!silencioso) this.alert.error(this.msgError(e, 'No se pudo cargar el mapa.'));
         },
       });
+  }
+
+  toggleEditarPlano() {
+    if (this.organizar()) this.toggleOrganizar();
+    const next = !this.editandoPlano();
+    this.editandoPlano.set(next);
+    this.dibujando.set(false);
+    this.draftPoints.set([]);
+    this.landmarkPendiente.set(null);
+  }
+
+  aplicarForma(codigo: string) {
+    if (codigo === 'CUSTOM') {
+      this.iniciarDibujo();
+      return;
+    }
+    const puntos =
+      codigo === 'L'
+        ? [[0, 0], [50, 0], [50, 50], [100, 50], [100, 100], [0, 100]]
+        : codigo === 'CIRCLE'
+          ? [[50, 50], [48, 48]]
+          : [[0, 0], [100, 0], [100, 100], [0, 100]];
+    this.plano.update((p) => ({ ...p, tipo_forma: codigo, puntos }));
+    this.dibujando.set(false);
+    this.draftPoints.set([]);
+    this.guardarPlano();
+  }
+
+  iniciarDibujo() {
+    this.dibujando.set(true);
+    this.draftPoints.set([]);
+    this.landmarkPendiente.set(null);
+    this.plano.update((p) => ({ ...p, tipo_forma: 'CUSTOM' }));
+  }
+
+  cancelarDibujo() {
+    this.dibujando.set(false);
+    this.draftPoints.set([]);
+  }
+
+  deshacerPunto() {
+    this.draftPoints.update((pts) => pts.slice(0, -1));
+  }
+
+  onCanvasClick(ev: MouseEvent) {
+    if (!this.editandoPlano()) return;
+    if ((ev.target as HTMLElement)?.closest?.('.mesa-card, .landmark-del, .mapa-landmark')) return;
+    const canvas = this.mapaCanvas()?.nativeElement;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    // Coordenadas 0–100 en toda la superficie (como celdas A1… del plano de referencia)
+    const x = this.snapPct(((ev.clientX - rect.left) / rect.width) * 100);
+    const y = this.snapPct(((ev.clientY - rect.top) / rect.height) * 100);
+
+    const lmTipo = this.landmarkPendiente();
+    if (lmTipo) {
+      this.plano.update((p) => ({
+        ...p,
+        landmarks: [...(p.landmarks || []), { tipo: lmTipo, x, y }],
+      }));
+      this.landmarkPendiente.set(null);
+      this.guardarPlano();
+      return;
+    }
+
+    if (!this.dibujando()) return;
+    const draft = this.draftPoints();
+    if (draft.length >= 3) {
+      const first = draft[0];
+      const dist = Math.hypot(x - first[0], y - first[1]);
+      if (dist < 5) {
+        this.plano.update((p) => ({ ...p, tipo_forma: 'CUSTOM', puntos: draft.slice() }));
+        this.dibujando.set(false);
+        this.draftPoints.set([]);
+        this.guardarPlano();
+        return;
+      }
+    }
+    this.draftPoints.update((pts) => [...pts, [x, y]]);
+  }
+
+  elegirLandmark(tipo: string) {
+    this.dibujando.set(false);
+    this.landmarkPendiente.set(tipo);
+  }
+
+  quitarLandmark(idx: number) {
+    this.plano.update((p) => ({
+      ...p,
+      landmarks: (p.landmarks || []).filter((_: any, i: number) => i !== idx),
+    }));
+    this.guardarPlano();
+  }
+
+  onLandmarkPointerDown(ev: PointerEvent, idx: number) {
+    if (!this.editandoPlano()) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.landmarkArrastrando.set(idx);
+    (ev.target as HTMLElement).setPointerCapture?.(ev.pointerId);
+  }
+
+  guardarPlano() {
+    const id = this.idSucursal();
+    if (!id) return;
+    const p = this.plano();
+    this.service.guardarPlano({
+      id_sucursal: id,
+      tipo_forma: p.tipo_forma,
+      puntos: p.puntos,
+      landmarks: p.landmarks,
+    }).subscribe({
+      next: (res) => {
+        const data = this.unwrapObject(res);
+        if (data?.tipo_forma) {
+          this.plano.set({
+            tipo_forma: data.tipo_forma,
+            puntos: data.puntos || p.puntos,
+            landmarks: data.landmarks || [],
+          });
+        }
+        this.alert.toast('Plano guardado', 'success');
+      },
+      error: (e) => this.alert.error(this.msgError(e, 'No se pudo guardar el plano.')),
+    });
+  }
+
+  roomPathD(): string {
+    const dibujando = this.dibujando();
+    const pts = dibujando && this.draftPoints().length
+      ? this.draftPoints()
+      : this.plano().puntos || [];
+    if (this.plano().tipo_forma === 'CIRCLE' && !dibujando) return '';
+    if (pts.length < 2) return '';
+    const base = 'M ' + pts.map((p) => `${p[0]},${p[1]}`).join(' L ');
+    return dibujando || pts.length < 3 ? base : base + ' Z';
+  }
+
+  circleAttrs() {
+    const pts = this.plano().puntos || [];
+    const cx = pts[0]?.[0] ?? 50;
+    const cy = pts[0]?.[1] ?? 50;
+    const rx = pts[1]?.[0] ?? 46;
+    const ry = pts[1]?.[1] ?? 46;
+    return { cx, cy, rx, ry };
+  }
+
+  iconoLandmark(tipo: string): string {
+    const map: Record<string, string> = {
+      TV: 'bi-tv',
+      BANO: 'bi-droplet',
+      ESCALERA: 'bi-sort-up',
+      COCINA: 'bi-fire',
+      CAJA: 'bi-cash-stack',
+      ENTRADA: 'bi-door-open',
+    };
+    return map[tipo] || 'bi-geo-alt';
+  }
+
+  etiquetaLandmark(tipo: string): string {
+    return this.tiposLandmark().find((t) => t.codigo === tipo)?.etiqueta || tipo;
+  }
+
+  private snapPct(n: number) {
+    // Rejilla cada 2% (equivalente al snap de 20px del HTML de referencia)
+    const snapped = Math.round(n / 2) * 2;
+    return Math.min(100, Math.max(0, snapped));
+  }
+
+  private clampPct(n: number) {
+    return Math.min(100, Math.max(0, Math.round(n * 10) / 10));
   }
 
   cargarLlamados() {
@@ -473,6 +724,46 @@ export class SalonComponent implements OnInit {
       error: (e) => {
         this.alert.closeLoading();
         this.alert.error(this.msgError(e, 'No se pudo generar el QR.'));
+      },
+    });
+  }
+
+  /** QR Carta: cualquier rol con permiso (incluye mozo en tablet; antes se ocultaba con !esTabletMozo). */
+  puedeVerQrCarta(m: any): boolean {
+    return !!m?.id_mesa && this.perms.hasPermission('ver_qr_mesa');
+  }
+
+  puedeCobrarDesdeSalon(m: any): boolean {
+    if (!m || String(m.estado) !== 'PIDIENDO_CUENTA') return false;
+    return this.perms.hasPermission('cobrar') || this.perms.hasPermission('ver_caja');
+  }
+
+  irACobrar(modal: any) {
+    const mesa = this.mesaSeleccionada();
+    if (!mesa) return;
+    const idPedido = Number(mesa.id_pedido || 0);
+    if (idPedido) {
+      modal.dismiss();
+      this.router.navigate(['/caja'], { queryParams: { pedido: idPedido, tab: 'cobrar' } });
+      return;
+    }
+    // Fallback: buscar cuenta abierta de la mesa
+    this.alert.showLoading('Abriendo cobro...');
+    this.caja.pendientes(Number(mesa.id_sucursal || this.idSucursal())).subscribe({
+      next: (res) => {
+        this.alert.closeLoading();
+        const list = this.unwrapArray(res);
+        const hit = list.find((p: any) => Number(p.id_mesa) === Number(mesa.id_mesa));
+        if (!hit?.id_pedido) {
+          this.alert.warning('No se encontró un pedido pendiente de cobro para esta mesa.');
+          return;
+        }
+        modal.dismiss();
+        this.router.navigate(['/caja'], { queryParams: { pedido: hit.id_pedido, tab: 'cobrar' } });
+      },
+      error: (e) => {
+        this.alert.closeLoading();
+        this.alert.error(this.msgError(e, 'No se pudo abrir el cobro.'));
       },
     });
   }

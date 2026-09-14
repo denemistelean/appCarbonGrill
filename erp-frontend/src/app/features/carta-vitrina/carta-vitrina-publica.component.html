@@ -1,12 +1,18 @@
-<div class="carta-root" [class.menu-open]="menuAbierto()">
+<div class="carta-root" [class.menu-open]="menuAbierto()" [class.tema-don-papas]="esDonPapas()">
   <header class="carta-header">
     <div class="header-top">
       <button type="button" class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuAbierto() ? 'Cerrar menú' : 'Abrir menú'">
         <i class="bi" [class.bi-list]="!menuAbierto()" [class.bi-x-lg]="menuAbierto()"></i>
       </button>
       <div class="header-brand">
-        <span class="logo-fire">🔥</span>
-        <h1>{{ config().nombre || 'Carbón Grill & Burgers' }}</h1>
+        @if (sucursal()?.logo_url) {
+          <img [src]="sucursal().logo_url" alt="Logo" class="carta-logo">
+        } @else if (esDonPapas()) {
+          <span class="logo-fire logo-dp">🍟</span>
+        } @else {
+          <span class="logo-fire">🔥</span>
+        }
+        <h1>{{ config().nombre || sucursal()?.nombre_comercial || 'Carta' }}</h1>
       </div>
       <div class="header-spacer"></div>
     </div>
@@ -20,7 +26,7 @@
       <div class="search-input-wrap">
         <i class="bi bi-search"></i>
         <input type="text" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
-               placeholder="Buscar plato, corte, trago o bebida...">
+               [placeholder]="esDonPapas() ? 'Buscar salchipapa, alitas, agregado...' : 'Buscar plato, corte, trago o bebida...'">
       </div>
     </div>
   </header>
@@ -93,7 +99,14 @@
                 </div>
               </div>
               <div class="card-footer">
-                <div class="card-price">{{ config().moneda || 'S/' }} {{ item.precio | number:'1.2-2' }}</div>
+                @if (tieneJunior(item)) {
+                  <div class="price-dual">
+                    <div><span>Junior</span><b class="card-price">{{ config().moneda || 'S/' }} {{ item.precio_junior | number:'1.2-2' }}</b></div>
+                    <div><span>Regular</span><b class="card-price">{{ config().moneda || 'S/' }} {{ item.precio | number:'1.2-2' }}</b></div>
+                  </div>
+                } @else {
+                  <div class="card-price">{{ config().moneda || 'S/' }} {{ item.precio | number:'1.2-2' }}</div>
+                }
                 @if (urlFoto(item)) {
                   <button type="button" class="btn-view-photo" (click)="abrirFoto(item)">
                     <i class="bi bi-camera"></i>

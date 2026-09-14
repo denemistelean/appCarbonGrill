@@ -1,4 +1,5 @@
-<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);"
+     [class.comandero-tablet]="esTablet">
     <div class="card-pro mb-3 p-3">
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
             <div>
@@ -6,7 +7,9 @@
                     <span class="icon-badge me-2"><i class="bi bi-journal-check"></i></span>
                     Comandero
                 </h5>
-                <span class="text-muted-erp text-xs-erp">Toma de pedido por mesa. Confirme los pre-pedidos QR del cliente.</span>
+                @if (!esTablet) {
+                    <span class="text-muted-erp text-xs-erp">Toma de pedido por mesa. Confirme los pre-pedidos QR del cliente.</span>
+                }
             </div>
             @if (pedidoEstado()) {
                 <span class="badge-erp badge-secondary align-self-center">{{ etiquetaEstadoPedido(pedidoEstado()) }}</span>
@@ -16,15 +19,17 @@
             }
         </div>
         <form [formGroup]="filtros" class="row g-3 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label">Sucursal</label>
-                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
-                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
-                           [searchable]="true" [clearable]="!sucursalBloqueada()"
-                           (change)="onSucursal()" notFoundText="Sin resultados">
-                </ng-select>
-            </div>
-            <div class="col-md-5">
+            @if (!sucursalBloqueada()) {
+                <div class="col-md-5">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               (change)="onSucursal()" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+            }
+            <div [class.col-md-5]="!sucursalBloqueada()" [class.col-md-10]="sucursalBloqueada()">
                 <label class="form-label">Mesa <span class="req-star">*</span></label>
                 <ng-select class="ng-select-sm" [items]="mesas()" bindLabel="numero" bindValue="id_mesa"
                            formControlName="id_mesa" placeholder="Seleccione mesa" appendTo="body"

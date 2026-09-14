@@ -10,7 +10,8 @@
                     <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
                     <th class="fw-bold border-0">NOMBRE</th>
                     <th class="fw-bold border-0">UNIDAD</th>
-                    <th class="fw-bold border-0 text-end">COSTO UNIT.</th>
+                    <th class="fw-bold border-0 text-end">P. COSTO</th>
+                    <th class="fw-bold border-0 text-end">P. VENTA</th>
                     <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
                 </tr>
             </thead>
@@ -20,7 +21,8 @@
                         <td class="ps-3 py-3"><div class="fw-bold text-primary-erp">#{{ item.id_insumo }}</div></td>
                         <td class="fw-bold text-erp text-uppercase">{{ item.nombre }}</td>
                         <td class="text-muted-erp">{{ item.unidad_codigo }}</td>
-                        <td class="text-end text-erp">{{ item.costo_unitario | number:'1.2-4' }}</td>
+                        <td class="text-end text-erp">{{ item.costo_unitario | number:'1.2-2' }}</td>
+                        <td class="text-end text-erp">{{ item.precio_venta | number:'1.2-2' }}</td>
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-2">
                                 @if (perms.hasPermission('actualizar_insumo')) {
@@ -37,7 +39,7 @@
                         </td>
                     </tr>
                 } @empty {
-                    <tr><td colspan="5" class="text-center py-5 text-muted-erp">No hay insumos registrados.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted-erp">No hay insumos registrados.</td></tr>
                 }
             </tbody>
         </app-table-pro>
@@ -69,9 +71,13 @@
                 <app-form-error [control]="form.get('id_unidad_medida')"></app-form-error>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Costo unitario <span class="req-star">*</span></label>
-                <input type="number" class="form-control" formControlName="costo_unitario" min="0" step="0.0001">
-                <app-form-error [control]="form.get('costo_unitario')"></app-form-error>
+                <label class="form-label">Precio costo (S/) <span class="req-star">*</span></label>
+                <app-number-field formControlName="precio_costo" mode="price" [alignEnd]="true"></app-number-field>
+                <app-form-error [control]="form.get('precio_costo')"></app-form-error>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Precio venta (S/)</label>
+                <app-number-field formControlName="precio_venta" mode="price" [alignEnd]="true"></app-number-field>
             </div>
         </form>
     </div>

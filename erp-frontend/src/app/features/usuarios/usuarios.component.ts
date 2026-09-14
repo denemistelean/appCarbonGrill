@@ -35,7 +35,7 @@ export class UsuariosComponent implements OnInit {
     this.form = this.fb.group({
       nombres:   ['', Validators.required],
       apellidos: ['', Validators.required],
-      correo:    ['', [Validators.required, Validators.email]],
+      correo:    ['', [Validators.required, Validators.minLength(3)]],
       password:  ['', [Validators.required, Validators.minLength(6)]],
       id_rol:    [null, Validators.required],
     });

@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Router } from '@angular/router';
 
 import { AuthService } from 'src/app/core/services/auth.service';
+import { SessionContextService } from 'src/app/core/services/session-context.service';
 import { PermissionsService } from 'src/app/core/services/seguridad/permissions.service';
 import { AlertService } from 'src/app/core/services/ui/alert.service';
 
@@ -19,6 +20,7 @@ export class Login {
   private authService = inject(AuthService);
   private router = inject(Router);
   private permsService = inject(PermissionsService);
+  private sessionContext = inject(SessionContextService);
   private alert = inject(AlertService);
   
   private cdr = inject(ChangeDetectorRef);
@@ -78,7 +80,9 @@ export class Login {
         console.log('🔍 Permisos recibidos en Login:', listaPermisos.length);
 
         if (listaPermisos.length > 0) {
-          this.router.navigate(['/dashboard']);
+          this.sessionContext.load().finally(() => {
+            this.router.navigate([this.sessionContext.rutaInicio()]);
+          });
         } else {
           this.rechazarIngreso();
         }

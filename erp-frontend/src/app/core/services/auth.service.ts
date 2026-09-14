@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PermissionsService } from './seguridad/permissions.service'; // 🔥 Importamos el servicio de permisos
+import { SessionContextService } from './session-context.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,6 +12,7 @@ import { PermissionsService } from './seguridad/permissions.service'; // 🔥 Im
 export class AuthService {
   private http = inject(HttpClient);
   private permsService = inject(PermissionsService); // 🔥 Lo inyectamos aquí
+  private sessionContext = inject(SessionContextService);
   
   // Apunta a tu backend
   private apiUrl = environment.apiUrlGestion; 
@@ -33,6 +35,7 @@ export class AuthService {
           localStorage.setItem('token', response.data.access_token);
           localStorage.setItem('usuario', JSON.stringify(response.data.usuario));
           console.log('✅ Usuario guardado con rol:', response.data.usuario.nombre_rol);
+          this.sessionContext.load();
         }
       })
     );
@@ -45,7 +48,12 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
     this.permsService.clear(); // 🔥 Limpiamos los permisos en el Signal (Memoria)
+    this.sessionContext.clear();
     window.location.replace('/auth/login'); // replace() no añade entrada al historial
+  }
+
+  getContexto(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/auth/contexto`);
   }
 
   cambiarClave(clave_actual: string, clave_nueva: string): Observable<any> {

@@ -9,6 +9,7 @@ import { finalize, forkJoin } from 'rxjs';
 import { PermissionsService } from 'src/app/core/services/seguridad/permissions.service';
 import { AlertService } from 'src/app/core/services/ui/alert.service';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
+import { SessionContextService } from 'src/app/core/services/session-context.service';
 import { PedidosService } from './pedidos.service';
 import { CajaHttpService } from '../caja/caja.service';
 
@@ -42,6 +43,11 @@ export class ComanderoComponent implements OnInit {
   private modal = inject(NgbModal);
   private route = inject(ActivatedRoute);
   public perms = inject(PermissionsService);
+  private sessionContext = inject(SessionContextService);
+
+  get esTablet(): boolean {
+    return this.sessionContext.esTabletOperativo();
+  }
 
   sucursales = signal<any[]>([]);
   mesas = signal<any[]>([]);
@@ -132,9 +138,11 @@ export class ComanderoComponent implements OnInit {
         const sucursales = this.unwrapArray(res);
         this.sucursales.set(sucursales);
         const qMesa = Number(this.route.snapshot.queryParamMap.get('mesa') || 0);
-        if (sucursales.length === 1) {
+        const idCtx = this.sessionContext.idSucursal();
+        if (sucursales.length === 1 || (this.esTablet && idCtx)) {
           this.sucursalBloqueada.set(true);
-          this.filtros.patchValue({ id_sucursal: sucursales[0].id_sucursal });
+          const id = sucursales.length === 1 ? sucursales[0].id_sucursal : idCtx;
+          this.filtros.patchValue({ id_sucursal: id });
           this.filtros.get('id_sucursal')?.disable({ emitEvent: false });
           this.onSucursal(qMesa || undefined);
         }

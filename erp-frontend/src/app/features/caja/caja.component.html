@@ -98,7 +98,7 @@
                 <div class="card-pro p-3">
                     <div class="d-flex justify-content-between mb-2">
                         <h6 class="fw-bold text-erp m-0">Cuentas abiertas</h6>
-                        <button type="button" class="btn btn-sm btn-soft-neutral" (click)="cargarPendientes()">
+                        <button type="button" class="btn btn-sm btn-soft-neutral" (click)="cargarPendientes(); cargarSinComprobante()">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
@@ -114,6 +114,25 @@
                     } @empty {
                         <div class="text-muted-erp py-3">No hay cuentas por cobrar.</div>
                     }
+
+                    @if (sinComprobante().length) {
+                        <div class="border-top-dashed-erp pt-3 mt-3">
+                            <h6 class="fw-bold text-erp mb-2">
+                                <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                                Cobradas sin boleta/factura
+                            </h6>
+                            <p class="text-muted-erp text-xs-erp mb-2">Pulse para corregir el RUC/DNI y emitir el comprobante.</p>
+                            @for (p of sinComprobante(); track p.id_cuenta) {
+                                <button type="button" class="cuenta-row cuenta-row-warn w-100 text-start mb-2" (click)="abrirPedido(p)">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>Mesa {{ p.mesa }} · Cuenta #{{ p.id_cuenta }}</strong>
+                                        <span>S/ {{ p.pagado || p.total | number:'1.2-2' }}</span>
+                                    </div>
+                                    <small class="text-muted-erp">Pedido #{{ p.id_pedido }} · {{ p.estado_cuenta }} · {{ p.mozo }}</small>
+                                </button>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
             <div class="col-lg-7">
@@ -122,7 +141,10 @@
                         <div class="d-flex justify-content-between gap-2 mb-2">
                             <div>
                                 <h6 class="fw-bold text-erp m-0">Mesa {{ det.pedido.mesa }} · Pedido #{{ det.pedido.id_pedido }}</h6>
-                                <small class="text-muted-erp">{{ det.pedido.mozo }} · {{ det.pedido.estado }}</small>
+                                <small class="text-muted-erp">
+                                    {{ det.pedido.mozo }} · {{ det.pedido.estado }}
+                                    · Cuenta #{{ det.cuenta.id_cuenta }}
+                                </small>
                             </div>
                             @if (perms.hasPermission('ver_precuenta')) {
                                 <button type="button" class="btn btn-sm btn-soft-neutral" (click)="descargarPrecuenta()">PRE-CUENTA PDF</button>
@@ -181,45 +203,99 @@
                                 }
                             </form>
                             <div class="fw-bold my-2">A cobrar: S/ {{ montoACobrar() | number:'1.2-2' }}</div>
+
+                            <div class="pago-progreso mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="pago-progreso-label">
+                                        @if (pagosCompletos()) {
+                                            Pagos completos
+                                        } @else {
+                                            Progreso del cobro
+                                        }
+                                    </span>
+                                    <span class="pago-progreso-pct"
+                                          [class.pago-progreso-ok]="pagosCompletos()">
+                                        {{ progresoPagoPct() }}%
+                                        · S/ {{ sumaMedios() | number:'1.2-2' }} / {{ montoACobrar() | number:'1.2-2' }}
+                                    </span>
+                                </div>
+                                <div class="pago-progreso-track">
+                                    <div class="pago-progreso-fill"
+                                         [class.pago-progreso-fill-ok]="pagosCompletos()"
+                                         [style.width.%]="progresoPagoPct()"></div>
+                                </div>
+                                @if (totalCuenta() > 0) {
+                                    <div class="pago-cuenta-mini mt-2">
+                                        Cuenta: S/ {{ pagadoCuenta() | number:'1.2-2' }} de {{ totalCuenta() | number:'1.2-2' }}
+                                        <div class="pago-progreso-track pago-progreso-track-sm mt-1">
+                                            <div class="pago-progreso-fill pago-progreso-fill-cuenta"
+                                                 [style.width.%]="progresoCuentaPct()"></div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
                             <form [formGroup]="mediosForm" class="row g-2 align-items-end">
                                 <div class="col-md-3">
                                     <label class="form-label">Medio</label>
                                     <ng-select class="ng-select-sm" [items]="mediosCat" bindLabel="etiqueta" bindValue="codigo"
-                                               formControlName="medio" appendTo="body" [clearable]="false">
+                                               formControlName="medio" appendTo="body" [clearable]="false"
+                                               [disabled]="pagosCompletos()">
                                     </ng-select>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label">Monto</label>
-                                    <input type="number" min="0.01" step="0.01" class="form-control" formControlName="monto">
+                                    <input type="number" min="0.01" step="0.01" class="form-control" formControlName="monto"
+                                           [attr.disabled]="pagosCompletos() ? true : null">
                                 </div>
                                 @if (mediosForm.getRawValue().medio === 'EFECTIVO') {
                                     <div class="col-md-2">
                                         <label class="form-label">Recibido</label>
-                                        <input type="number" min="0" step="0.01" class="form-control" formControlName="recibido">
+                                        <input type="number" min="0" step="0.01" class="form-control" formControlName="recibido"
+                                               [attr.disabled]="pagosCompletos() ? true : null">
                                     </div>
                                 }
                                 <div class="col-md-3">
                                     <label class="form-label">Ref.</label>
-                                    <input type="text" class="form-control" formControlName="referencia" placeholder="Últimos 4 / celular">
+                                    <input type="text" class="form-control" formControlName="referencia" placeholder="Últimos 4 / celular"
+                                           [attr.disabled]="pagosCompletos() ? true : null">
                                 </div>
                                 <div class="col-md-2">
-                                    <button type="button" class="btn btn-soft-neutral w-100" (click)="agregarMedio()">AÑADIR</button>
+                                    <button type="button" class="btn btn-soft-neutral w-100" (click)="agregarMedio()"
+                                            [disabled]="pagosCompletos()">AÑADIR</button>
                                 </div>
                             </form>
-                            @for (m of mediosDraft(); track $index) {
-                                <div class="d-flex justify-content-between small mt-1">
-                                    <span>{{ etiquetaMedio(m.medio) }} S/ {{ m.monto | number:'1.2-2' }}
-                                        @if (m.referencia) { · {{ m.referencia }} }
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-link" (click)="quitarMedio($index)">Quitar</button>
-                                </div>
-                            }
+
+                            <div class="pago-chips mt-2">
+                                @for (m of mediosDraft(); track $index) {
+                                    <div class="pago-chip" [ngClass]="claseMedioChip(m.medio)">
+                                        <div class="pago-chip-main">
+                                            <span class="pago-chip-estado">{{ etiquetaMedio(m.medio) }}</span>
+                                            <span class="pago-chip-monto">S/ {{ m.monto | number:'1.2-2' }}</span>
+                                            @if (m.referencia) {
+                                                <span class="pago-chip-ref">{{ m.referencia }}</span>
+                                            }
+                                        </div>
+                                        <button type="button" class="pago-chip-quitar" (click)="quitarMedio($index)">
+                                            QUITAR
+                                        </button>
+                                    </div>
+                                } @empty {
+                                    <div class="text-muted-erp text-xs-erp py-1">Agregue uno o más medios de pago.</div>
+                                }
+                            </div>
+                        }
+
+                        @if (det.cuenta.estado !== 'PAGADA' || mostrarPanelClienteEmitir()) {
                             <form [formGroup]="docForm" class="row g-2 mt-3">
                                 <div class="col-12">
                                     <label class="form-label">Documento de la venta</label>
                                     <ng-select class="ng-select-sm" [items]="tiposVenta" bindLabel="nombre" bindValue="id"
                                                formControlName="tipo_comprobante" [clearable]="false" appendTo="body">
                                     </ng-select>
+                                    @if (docForm.getRawValue().tipo_comprobante === 'FACTURA') {
+                                        <small class="text-muted-erp">Factura: use RUC de 11 dígitos (no DNI).</small>
+                                    }
                                 </div>
                                 @if (docForm.getRawValue().tipo_comprobante !== 'NINGUNO') {
                                     <div class="col-5">
@@ -231,7 +307,8 @@
                                     <div class="col-7">
                                         <label class="form-label">Número</label>
                                         <div class="d-flex gap-1">
-                                            <input type="text" class="form-control" formControlName="num_doc_cliente">
+                                            <input type="text" class="form-control" formControlName="num_doc_cliente"
+                                                   [placeholder]="docForm.getRawValue().tipo_comprobante === 'FACTURA' ? 'RUC 11 dígitos' : 'Documento'">
                                             <button type="button" class="btn btn-soft-neutral" (click)="consultarSunat()" [disabled]="consultando()">
                                                 SUNAT
                                             </button>
@@ -243,18 +320,43 @@
                                     </div>
                                 }
                             </form>
+                        }
+
+                        @if (det.cuenta.estado !== 'PAGADA' && perms.hasPermission('cobrar')) {
                             <div class="d-flex gap-2 mt-3">
-                                <button type="button" class="btn btn-soft-neutral" (click)="llenarEfectivo()">TODO EFECTIVO</button>
-                                <button type="button" class="btn btn-primary" (click)="cobrar()" [disabled]="!turno()">COBRAR</button>
+                                <button type="button" class="btn btn-soft-neutral"
+                                        (click)="llenarEfectivo()"
+                                        [disabled]="pagosCompletos()">TODO EFECTIVO</button>
+                                <button type="button" class="btn btn-primary" (click)="cobrar()"
+                                        [disabled]="!turno() || !pagosCompletos()">COBRAR</button>
                             </div>
                             @if (!turno()) {
                                 <div class="text-muted-erp mt-2">Abra un turno para cobrar.</div>
                             }
                         }
+
                         @if (det.cuenta.estado === 'PAGADA') {
-                            <div class="badge-erp badge-success-erp mt-3">Cuenta pagada · mesa en limpieza</div>
+                            <div class="badge-erp badge-success-erp mt-3">Cuenta pagada · mesa en limpieza · #{{ det.cuenta.id_cuenta }}</div>
                         }
-                        @if ((det.cuenta.estado === 'PAGADA' || det.cuenta.estado === 'PARCIAL') && perms.hasPermission('emitir_comprobante')) {
+                        @if (comprobanteEmitidoEnCobro() || det.cuenta.tiene_comprobante_electronico) {
+                            <div class="badge-erp badge-success-erp mt-2">Comprobante electrónico emitido</div>
+                        }
+                        @if (mostrarPanelClienteEmitir()) {
+                            <div class="alert alert-warning mt-3 mb-2 py-2">
+                                El cobro ya está registrado. Corrija el documento del cliente y emita el comprobante.
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-primary" (click)="reintentarEmision()"
+                                        [disabled]="emitiendoDoc()">
+                                    EMITIR COMPROBANTE
+                                </button>
+                                @if (perms.hasPermission('emitir_comprobante')) {
+                                    <button type="button" class="btn btn-soft-neutral" (click)="irAComprobante()">
+                                        Abrir en Comprobantes
+                                    </button>
+                                }
+                            </div>
+                        } @else if (mostrarEmitirComprobante()) {
                             <button type="button" class="btn btn-primary mt-3" (click)="irAComprobante()">
                                 EMITIR COMPROBANTE SUNAT
                             </button>

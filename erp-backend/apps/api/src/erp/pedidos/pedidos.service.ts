@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource, QueryRunner } from 'typeorm';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import { InventarioService } from '../inventario/inventario.service';
 import { KDS_TICKET_EVENT } from './kds.gateway';
@@ -31,6 +32,7 @@ export class PedidosService {
     private readonly auditoriaService: AuditoriaService,
     private readonly inventarioService: InventarioService,
     private readonly events: EventEmitter2,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   catalogos() {
@@ -46,7 +48,7 @@ export class PedidosService {
   }
 
   async listaSucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO' AND s.tipo = 'LOCAL'`;
     if (!alcance.esSuperadmin) {
@@ -61,7 +63,7 @@ export class PedidosService {
 
   async listaMesas(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     return this.dataSource.query(
       `SELECT m.id_mesa, m.numero, m.nombre, m.estado, m.capacidad, m.mesa_padre_id,
@@ -76,7 +78,7 @@ export class PedidosService {
 
   async carta(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     return this.cartaPorSucursal(idSucursal);
   }
@@ -115,7 +117,7 @@ export class PedidosService {
     const idMesa = Number(query.id_mesa);
     if (!idMesa || Number.isNaN(idMesa)) throw new BadRequestException('Mesa inválida');
     const mesa = await this.obtenerMesa(idMesa);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const mesaCuenta = mesa.mesa_padre_id ? Number(mesa.mesa_padre_id) : idMesa;
     const [row] = await this.dataSource.query(
       `SELECT id_pedido FROM pedido
@@ -130,14 +132,14 @@ export class PedidosService {
 
   async findAll(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_sucursal', 'id_mesa', 'estado']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE p.estado_registro = 'ACTIVO'`;
 
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND p.id_sucursal = ?`;
       params.push(idSucursal);
@@ -192,7 +194,7 @@ export class PedidosService {
       [id],
     );
     if (!cab) throw new NotFoundException('Pedido no encontrado');
-    if (user) await this.assertAccesoSucursal(cab.id_sucursal, user);
+    if (user) await this.alcanceService.assertAccesoSucursal(cab.id_sucursal, user);
 
     const items = await this.dataSource.query(
       `SELECT i.id_pedido_item, i.id_producto, pr.codigo, pr.nombre AS producto, pr.es_combo,
@@ -249,8 +251,8 @@ export class PedidosService {
 
   async cocina(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal', 'estacion']);
-    const alcance = await this.resolverAlcance(user);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance) || alcance.idSucursal;
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance) || alcance.idSucursal;
     if (!idSucursal) throw new BadRequestException('Debe indicar la sucursal');
 
     const estaciones = this.estacionesPermitidas(alcance.rol, query.estacion);
@@ -316,7 +318,7 @@ export class PedidosService {
   }
 
   async upsert(id: number | null, dto: UpsertPedidoDto, user: RequestUser) {
-    await this.assertAccesoSucursal(dto.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     const mesa = await this.obtenerMesa(dto.id_mesa);
     if (Number(mesa.id_sucursal) !== Number(dto.id_sucursal)) {
       throw new BadRequestException('La mesa no pertenece a la sucursal');
@@ -386,7 +388,7 @@ export class PedidosService {
     await qr.startTransaction();
     try {
       const pedido = await this.obtenerPedidoTx(qr, id);
-      await this.assertAccesoSucursal(pedido.id_sucursal, user);
+      await this.alcanceService.assertAccesoSucursal(pedido.id_sucursal, user);
       if (pedido.estado !== 'PENDIENTE_CONFIRMACION') {
         throw new ConflictException('El pedido ya fue confirmado o anulado');
       }
@@ -573,7 +575,7 @@ export class PedidosService {
   async cambiarPreparacion(idPedido: number, idItem: number, dto: CambiarPreparacionDto, user: RequestUser) {
     this.assertId(idPedido);
     this.assertId(idItem);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     if (alcance.rol === 'MOZO' && dto.estado_preparacion !== 'ENTREGADO') {
       throw new ForbiddenException('El mozo solo puede marcar ítems como entregados');
     }
@@ -587,7 +589,7 @@ export class PedidosService {
       let idSucursal = 0;
       try {
         const pedido = await this.obtenerPedidoTx(qr, idPedido);
-        await this.assertAccesoSucursal(pedido.id_sucursal, user);
+        await this.alcanceService.assertAccesoSucursal(pedido.id_sucursal, user);
         if (!['CONFIRMADO', 'EN_PREPARACION', 'LISTO'].includes(pedido.estado)) {
           throw new ConflictException('El pedido no está en cocina');
         }
@@ -1092,51 +1094,10 @@ export class PedidosService {
     return map[e] || e;
   }
 
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    this.assertSucursalPermitida(idSucursal, alcance);
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
   private exigirSucursal(raw: any, alcance: AlcanceSucursal): number {
-    const id = this.forzarSucursal(raw, alcance);
+    const id = this.alcanceService.forzarSucursal(raw, alcance);
     if (!id) throw new BadRequestException('Debe indicar la sucursal');
     return id;
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
-  }
-
-  private assertSucursalPermitida(idSucursal: number, alcance: AlcanceSucursal) {
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

@@ -11,6 +11,7 @@ import { PermissionsService } from 'src/app/core/services/seguridad/permissions.
 import { AlertService } from 'src/app/core/services/ui/alert.service';
 import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro.component';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
+import { NumberFieldComponent } from 'src/app/shared/components/number-field/number-field.component';
 import { InventarioService } from './inventario.service';
 
 type SeccionInventario = 'stock' | 'movimientos' | 'kardex' | 'mermas';
@@ -29,9 +30,75 @@ type IngresoModo = 'uno' | 'lote';
     NgSelectModule,
     TableProComponent,
     FormErrorComponent,
+    NumberFieldComponent,
   ],
   templateUrl: './inventario.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [`
+    tr.kardex-grupo-inicio > td {
+      border-top: 2px solid var(--erp-border-soft) !important;
+      padding-top: 0.85rem;
+    }
+    tbody tr:first-child.kardex-grupo-inicio > td {
+      border-top: none !important;
+      padding-top: inherit;
+    }
+
+    .stock-total-wrap {
+      display: inline-block;
+      cursor: help;
+      border-bottom: 1px dashed var(--erp-border-soft);
+    }
+
+    .stock-tooltip-floating {
+      position: fixed;
+      z-index: 1080;
+      pointer-events: none;
+      min-width: 17rem;
+      padding: 0.65rem 0.75rem;
+      background: var(--erp-inner-panel-bg);
+      border: 1px solid var(--erp-border-soft);
+      border-radius: var(--rad-md);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      text-align: left;
+      font-weight: normal;
+      font-size: var(--fs-xs);
+      white-space: nowrap;
+      transform: translateY(-100%);
+    }
+
+    .stock-tooltip-row {
+      display: grid;
+      grid-template-columns: minmax(8rem, 1fr) auto auto;
+      gap: 0.35rem 0.75rem;
+      align-items: center;
+      line-height: 1.5;
+    }
+
+    .stock-tooltip-row + .stock-tooltip-row {
+      margin-top: 0.2rem;
+    }
+
+    .stock-tooltip-nombre {
+      color: var(--erp-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stock-tooltip-codigo {
+      font-weight: var(--fw-bold);
+      color: var(--erp-primary);
+      text-align: center;
+      min-width: 1.75rem;
+    }
+
+    .stock-tooltip-qty {
+      font-weight: var(--fw-bold);
+      color: var(--erp-text);
+      text-align: right;
+      min-width: 2.5rem;
+    }
+  `],
 })
 export class InventarioComponent implements OnInit {
   private fb = inject(FormBuilder);
@@ -57,8 +124,13 @@ export class InventarioComponent implements OnInit {
   stockMeta = signal({ total: 0, page: 1, limit: 10 });
   stockLoading = signal(false);
 
+  stockTooltipVisible = signal(false);
+  stockTooltipX = signal(0);
+  stockTooltipY = signal(0);
+  stockTooltipDetalle = signal<any[]>([]);
+
   kardex = signal<any[]>([]);
-  kardexMeta = signal({ total: 0, page: 1, limit: 10 });
+  kardexMeta = signal({ total: 0, page: 1, limit: 50 });
   kardexLoading = signal(false);
 
   mermas = signal<any[]>([]);
@@ -90,13 +162,20 @@ export class InventarioComponent implements OnInit {
     id_sucursal: [null],
     id_insumo: [null],
     bajo_minimo: [null],
+    agrupado: ['0'],
   });
+
+  readonly vistasStock = [
+    { id: '0', etiqueta: 'Por sucursal' },
+    { id: '1', etiqueta: 'Agrupado (todas)' },
+  ];
 
   movimientoForm: FormGroup = this.fb.group({
     id_insumo: [null, Validators.required],
     id_sucursal: [null, Validators.required],
-    cantidad: [1, [Validators.required, Validators.min(0.0001)]],
-    costo_unitario: [null, [Validators.required, Validators.min(0)]],
+    cantidad: [1, [Validators.required, Validators.min(1)]],
+    precio_costo: [0, [Validators.required, Validators.min(0)]],
+    precio_venta: [0, [Validators.min(0)]],
     sentido: ['INGRESO'],
     motivo: [''],
     detalle: [''],
@@ -115,8 +194,8 @@ export class InventarioComponent implements OnInit {
     id_sucursal: [null],
     id_insumo: [null],
     tipo: [null],
-    fecha_desde: [''],
-    fecha_hasta: [''],
+    fecha_desde: [InventarioComponent.fechaLocalHoy()],
+    fecha_hasta: [InventarioComponent.fechaLocalHoy()],
   });
 
   mermaFiltros: FormGroup = this.fb.group({
@@ -130,7 +209,7 @@ export class InventarioComponent implements OnInit {
   mermaForm: FormGroup = this.fb.group({
     id_insumo: [null, Validators.required],
     id_sucursal: [null, Validators.required],
-    cantidad: [1, [Validators.required, Validators.min(0.0001)]],
+    cantidad: [1, [Validators.required, Validators.min(1)]],
     motivo: [null, Validators.required],
     id_lote: [null],
     detalle: [''],
@@ -162,7 +241,10 @@ export class InventarioComponent implements OnInit {
       .subscribe((id) => {
         const insumo = this.insumos().find((x) => Number(x.id_insumo) === Number(id));
         if (insumo && this.movimientoTipo() === 'ingreso') {
-          this.movimientoForm.patchValue({ costo_unitario: Number(insumo.costo_unitario) }, { emitEvent: false });
+          this.movimientoForm.patchValue({
+            precio_costo: Number(insumo.costo_unitario || 0),
+            precio_venta: Number(insumo.precio_venta || 0),
+          }, { emitEvent: false });
         }
       });
 
@@ -193,9 +275,11 @@ export class InventarioComponent implements OnInit {
   setMovimientoTipo(tipo: MovimientoTipo) {
     this.movimientoTipo.set(tipo);
     if (tipo !== 'ingreso') this.ingresoModo.set('uno');
-    const costoCtrl = this.movimientoForm.get('costo_unitario');
+    const costoCtrl = this.movimientoForm.get('precio_costo');
     if (tipo === 'ingreso') {
       costoCtrl?.setValidators([Validators.required, Validators.min(0)]);
+    } else if (tipo === 'ajuste') {
+      costoCtrl?.setValidators([Validators.min(0)]);
     } else {
       costoCtrl?.clearValidators();
     }
@@ -208,9 +292,90 @@ export class InventarioComponent implements OnInit {
     this.cargarStock();
   }
 
+  esStockAgrupado(): boolean {
+    return String(this.stockFiltros.get('agrupado')?.value) === '1';
+  }
+
+  onVistaStockChange() {
+    if (this.esStockAgrupado()) {
+      this.stockFiltros.patchValue({ id_sucursal: null });
+      this.stockFiltros.get('id_sucursal')?.disable({ emitEvent: false });
+    } else if (!this.sucursalBloqueada()) {
+      this.stockFiltros.get('id_sucursal')?.enable({ emitEvent: false });
+    }
+    this.filtrarStock();
+  }
+
+  abrevSucursal(item: { nombre?: string; codigo?: string }): string {
+    const stop = new Set(['DE', 'DEL', 'LA', 'EL', 'Y', 'LOS', 'LAS']);
+    const words = String(item.nombre || '')
+      .toUpperCase()
+      .split(/\s+/)
+      .filter((w) => w && !stop.has(w));
+    if (words.length) return words.map((w) => w[0]).join('').slice(0, 4);
+    const codigo = String(item.codigo || '').replace(/[^A-Za-z0-9]/g, '');
+    return codigo.slice(0, 4).toUpperCase() || '—';
+  }
+
+  activarStockTooltip(event: MouseEvent, item: any) {
+    this.stockTooltipDetalle.set(item.detalle_sucursales || []);
+    this.stockTooltipVisible.set(true);
+    this.moverStockTooltip(event);
+  }
+
+  moverStockTooltip(event: MouseEvent) {
+    this.stockTooltipX.set(event.clientX + 12);
+    this.stockTooltipY.set(event.clientY - 8);
+  }
+
+  ocultarStockTooltip() {
+    this.stockTooltipVisible.set(false);
+    this.stockTooltipDetalle.set([]);
+  }
+
   filtrarKardex() {
     this.kardexMeta.update((m) => ({ ...m, page: 1 }));
     this.cargarKardex();
+  }
+
+  filtrarKardexHoy() {
+    const hoy = InventarioComponent.fechaLocalHoy();
+    this.kardexFiltros.patchValue({ fecha_desde: hoy, fecha_hasta: hoy });
+    this.filtrarKardex();
+  }
+
+  esInicioGrupoKardex(index: number): boolean {
+    if (index <= 0) return false;
+    const rows = this.kardex();
+    return this.claveMomentoKardex(rows[index]) !== this.claveMomentoKardex(rows[index - 1]);
+  }
+
+  private claveMomentoKardex(row: any): string {
+    const d = new Date(row?.fecha_movimiento);
+    if (Number.isNaN(d.getTime())) return '';
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  claseTipoKardex(tipo: string): string {
+    const map: Record<string, string> = {
+      INGRESO: 'badge-success-erp',
+      SALIDA: 'badge-danger-erp',
+      MERMA: 'badge-warning-erp',
+      AJUSTE: 'badge-primary-erp',
+    };
+    return map[String(tipo || '').toUpperCase()] || 'badge-neutral-erp';
+  }
+
+  etiquetaTipoKardex(tipo: string): string {
+    const found = this.tiposKardex.find((t) => t.id === String(tipo || '').toUpperCase());
+    return found?.etiqueta || tipo || '—';
+  }
+
+  private static fechaLocalHoy(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
 
   filtrarMermas() {
@@ -252,8 +417,9 @@ export class InventarioComponent implements OnInit {
     this.ingresoLoteItems.push(
       this.fb.group({
         id_insumo: [null, Validators.required],
-        cantidad: [1, [Validators.required, Validators.min(0.0001)]],
-        costo_unitario: [0, [Validators.required, Validators.min(0)]],
+        cantidad: [1, [Validators.required, Validators.min(1)]],
+        precio_costo: [0, [Validators.required, Validators.min(0)]],
+        precio_venta: [0, [Validators.min(0)]],
       }),
     );
   }
@@ -268,7 +434,10 @@ export class InventarioComponent implements OnInit {
     const id = grp.get('id_insumo')?.value;
     const insumo = this.insumos().find((x) => Number(x.id_insumo) === Number(id));
     if (insumo) {
-      grp.patchValue({ costo_unitario: Number(insumo.costo_unitario) });
+      grp.patchValue({
+        precio_costo: Number(insumo.costo_unitario || 0),
+        precio_venta: Number(insumo.precio_venta || 0),
+      });
     }
   }
 
@@ -287,9 +456,8 @@ export class InventarioComponent implements OnInit {
     const items = (raw.items || []).map((it: any) => ({
       id_insumo: Number(it.id_insumo),
       cantidad: Number(it.cantidad),
-      costo_unitario: it.costo_unitario != null && it.costo_unitario !== ''
-        ? Number(it.costo_unitario)
-        : undefined,
+      costo_unitario: Number(it.precio_costo ?? 0),
+      precio_venta: it.precio_venta != null && it.precio_venta !== '' ? Number(it.precio_venta) : undefined,
     }));
     if (!items.length || items.some((it: any) => !it.id_insumo || !(it.cantidad > 0))) {
       this.alert.error('Cada fila debe tener insumo y cantidad mayor a cero.');
@@ -335,13 +503,14 @@ export class InventarioComponent implements OnInit {
       detalle: raw.detalle || null,
     };
     if (tipo === 'ingreso') {
-      payload.costo_unitario = Number(raw.costo_unitario);
+      payload.costo_unitario = Number(raw.precio_costo);
+      payload.precio_venta = raw.precio_venta != null && raw.precio_venta !== '' ? Number(raw.precio_venta) : undefined;
       payload.lote = raw.lote || null;
       payload.fecha_vencimiento = raw.fecha_vencimiento || null;
     }
     if (tipo === 'ajuste') {
       payload.sentido = raw.sentido;
-      if (raw.costo_unitario != null && raw.costo_unitario !== '') payload.costo_unitario = Number(raw.costo_unitario);
+      if (raw.precio_costo != null && raw.precio_costo !== '') payload.costo_unitario = Number(raw.precio_costo);
     }
 
     this.alert.showLoading('Registrando movimiento...');

@@ -10,7 +10,21 @@ import {
   Min,
 } from 'class-validator';
 
+export class IdSucursalQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  id_sucursal?: number;
+}
+
 export class ActualizarVitrinaDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  id_sucursal?: number;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
@@ -30,9 +44,19 @@ export class ActualizarVitrinaDto {
   @IsString()
   @MaxLength(8)
   moneda?: string;
+
+  @IsOptional()
+  @IsIn(['carbon_grill', 'don_papas'])
+  tema?: 'carbon_grill' | 'don_papas';
 }
 
 export class CrearTagDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  id_sucursal?: number;
+
   @IsIn(['SABOR', 'CHORIZO'])
   tipo!: 'SABOR' | 'CHORIZO';
 
@@ -53,6 +77,12 @@ export class GuardarProductoVitrinaDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  id_sucursal?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   id_producto?: number;
 
   @Type(() => Number)
@@ -69,6 +99,12 @@ export class GuardarProductoVitrinaDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   precio!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  precio_junior?: number | null;
 
   @IsOptional()
   @IsString()

@@ -37,50 +37,50 @@ export class CartaVitrinaStaffController {
 
   @Get()
   @RequirePermissions('CARTA', 'ver_carta_visual')
-  admin(@Req() req: any) {
-    return this.service.adminResumen(resolveRequestUser(req));
+  admin(@Query() query: any, @Req() req: any) {
+    return this.service.adminResumen(resolveRequestUser(req), query);
   }
 
   @Put('config')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  config(@Body() dto: ActualizarVitrinaDto, @Req() req: any) {
-    return this.service.guardarConfig(dto, resolveRequestUser(req));
+  config(@Body() dto: ActualizarVitrinaDto, @Query() query: any, @Req() req: any) {
+    return this.service.guardarConfig(dto, resolveRequestUser(req), query);
   }
 
   @Post('tags')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  crearTag(@Body() dto: CrearTagDto, @Req() req: any) {
-    return this.service.crearTag(dto, resolveRequestUser(req));
+  crearTag(@Body() dto: CrearTagDto, @Query() query: any, @Req() req: any) {
+    return this.service.crearTag(dto, resolveRequestUser(req), query);
   }
 
   @Delete('tags/:id')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  borrarTag(@Param('id') id: string, @Req() req: any) {
-    return this.service.eliminarTag(Number(id), resolveRequestUser(req));
+  borrarTag(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    return this.service.eliminarTag(Number(id), resolveRequestUser(req), query);
   }
 
   @Post('productos')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  guardarProducto(@Body() dto: GuardarProductoVitrinaDto, @Req() req: any) {
-    return this.service.guardarProducto(dto, resolveRequestUser(req));
+  guardarProducto(@Body() dto: GuardarProductoVitrinaDto, @Query() query: any, @Req() req: any) {
+    return this.service.guardarProducto(dto, resolveRequestUser(req), query);
   }
 
   @Patch('productos/:id/disponible')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  toggle(@Param('id') id: string, @Req() req: any) {
-    return this.service.toggleDisponible(Number(id), resolveRequestUser(req));
+  toggle(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    return this.service.toggleDisponible(Number(id), resolveRequestUser(req), query);
   }
 
   @Delete('productos/:id')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  quitar(@Param('id') id: string, @Req() req: any) {
-    return this.service.quitarDeCarta(Number(id), resolveRequestUser(req));
+  quitar(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    return this.service.quitarDeCarta(Number(id), resolveRequestUser(req), query);
   }
 
   @Patch('productos/:id/visible')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  restaurar(@Param('id') id: string, @Req() req: any) {
-    return this.service.restaurarEnCarta(Number(id), resolveRequestUser(req));
+  restaurar(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    return this.service.restaurarEnCarta(Number(id), resolveRequestUser(req), query);
   }
 
   @Post('productos/:id/imagen')
@@ -91,13 +91,13 @@ export class CartaVitrinaStaffController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  imagen(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Req() req: any) {
-    return this.service.subirImagen(Number(id), file, resolveRequestUser(req));
+  imagen(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Query() query: any, @Req() req: any) {
+    return this.service.subirImagen(Number(id), file, resolveRequestUser(req), query);
   }
 
   @Delete('productos/:id/imagen')
   @RequirePermissions('CARTA', 'gestionar_carta_visual')
-  quitarImagen(@Param('id') id: string, @Req() req: any) {
-    return this.service.quitarImagen(Number(id), resolveRequestUser(req));
+  quitarImagen(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    return this.service.quitarImagen(Number(id), resolveRequestUser(req), query);
   }
 }

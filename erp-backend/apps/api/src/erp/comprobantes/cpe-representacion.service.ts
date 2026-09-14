@@ -136,7 +136,7 @@ export class CpeRepresentacionService {
       id_venta: String(c.id_cuenta || c.id_comprobante),
       qr_img: qrImg,
       qr: qrText,
-      logo_img: this.loadLogoImg(),
+      logo_img: this.loadLogoImg(c.emisor_logo_path),
     };
   }
 
@@ -149,14 +149,14 @@ export class CpeRepresentacionService {
     return '0';
   }
 
-  private loadLogoImg(): string {
-    const baseDir = resolve(process.cwd(), 'uploads', 'empresa');
+  private loadLogoImg(relativePath?: string | null): string {
     const candidates = [
+      relativePath ? join(process.cwd(), 'uploads', String(relativePath).replace(/^\/+/, '')) : null,
       process.env.EMPRESA_LOGO_PATH,
-      join(baseDir, 'logo_factura.png'),
-      join(baseDir, 'logo_factura.jpg'),
-      join(baseDir, 'logo_factura.jpeg'),
-      join(baseDir, 'logo_factura.webp'),
+      join(resolve(process.cwd(), 'uploads', 'empresa'), 'logo_factura.png'),
+      join(resolve(process.cwd(), 'uploads', 'empresa'), 'logo_factura.jpg'),
+      join(resolve(process.cwd(), 'uploads', 'empresa'), 'logo_factura.jpeg'),
+      join(resolve(process.cwd(), 'uploads', 'empresa'), 'logo_factura.webp'),
     ].filter(Boolean) as string[];
 
     for (const p of candidates) {

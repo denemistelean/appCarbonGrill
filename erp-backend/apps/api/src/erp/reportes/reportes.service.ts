@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { RequestUser } from '../../common/auth/request-user.interface';
 
 type AlcanceSucursal = { esSuperadmin: boolean; idSucursal: number | null; rol: string };
@@ -8,10 +9,13 @@ type Rango = { desde: string; hasta: string; desdeDia: string; hastaDia: string 
 
 @Injectable()
 export class ReportesService {
-  constructor(@InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
+    private readonly alcanceService: AlcanceService,
+  ) {}
 
   async sucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO'`;
     if (!alcance.esSuperadmin) {
@@ -486,8 +490,8 @@ export class ReportesService {
 
   private async prep(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal', 'fecha_desde', 'fecha_hasta']);
-    const alcance = await this.resolverAlcance(user);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     return { alcance, idSucursal, rango: this.rango(query) };
   }
 
@@ -524,36 +528,6 @@ export class ReportesService {
       return ` AND ${alias}.id_sucursal = ?`;
     }
     return '';
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

@@ -27,3 +27,32 @@
 .kds-timer-warn {
   color: var(--erp-primary, #e63946);
 }
+
+.kds-tablet {
+  max-width: none !important;
+  padding: 0.5rem !important;
+}
+
+.kds-tablet .kds-card {
+  min-height: 160px;
+  padding: 1.15rem;
+  touch-action: manipulation;
+}
+
+.kds-tablet .kds-card .btn {
+  min-height: 44px;
+  min-width: 110px;
+  font-weight: 700;
+}
+
+.kds-tablet .col-lg-4 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 900px) {
+  .kds-tablet .col-lg-4 {
+    flex: 0 0 33.333%;
+    max-width: 33.333%;
+  }
+}

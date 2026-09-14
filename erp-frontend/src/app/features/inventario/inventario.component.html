@@ -10,15 +10,25 @@
     @if (tab() === 'stock') {
         <div class="card-pro mb-3 p-3">
             <form [formGroup]="stockFiltros" class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label">Sucursal</label>
-                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
-                               formControlName="id_sucursal" placeholder="Todas las sucursales" appendTo="body"
-                               [searchable]="true" [clearable]="!sucursalBloqueada()"
-                               notFoundText="Sin resultados">
+                <div class="col-md-3">
+                    <label class="form-label">Vista</label>
+                    <ng-select class="ng-select-sm" [items]="vistasStock" bindLabel="etiqueta" bindValue="id"
+                               formControlName="agrupado" appendTo="body"
+                               [searchable]="false" [clearable]="false"
+                               (change)="onVistaStockChange()">
                     </ng-select>
                 </div>
-                <div class="col-md-4">
+                @if (!esStockAgrupado()) {
+                    <div class="col-md-3">
+                        <label class="form-label">Sucursal</label>
+                        <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                                   formControlName="id_sucursal" placeholder="Todas las sucursales" appendTo="body"
+                                   [searchable]="true" [clearable]="!sucursalBloqueada()"
+                                   notFoundText="Sin resultados">
+                        </ng-select>
+                    </div>
+                }
+                <div class="col-md-3">
                     <label class="form-label">Insumo</label>
                     <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
                                formControlName="id_insumo" placeholder="Todos los insumos" appendTo="body"
@@ -32,37 +42,55 @@
                                [searchable]="false" [clearable]="true" notFoundText="Sin resultados">
                     </ng-select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-1">
                     <button type="button" class="btn btn-primary w-100" (click)="filtrarStock()">FILTRAR</button>
                 </div>
             </form>
         </div>
 
         <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
-            <app-table-pro titulo="Existencias" subtitulo="Consulte stock por sucursal e insumo."
+            <app-table-pro titulo="Existencias"
+                [subtitulo]="esStockAgrupado() ? 'Total por insumo · pase el cursor sobre stock para ver detalle' : 'Consulte stock por sucursal e insumo.'"
                 [hideSearch]="true" [showAddBtn]="false" [loading]="stockLoading()" [data]="stock()" [meta]="stockMeta()"
                 (pageChange)="cambiarPaginaStock($event)">
                 <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
                     <tr>
                         <th class="ps-3 fw-bold border-0">INSUMO</th>
-                        <th class="fw-bold border-0">SUCURSAL</th>
+                        @if (!esStockAgrupado()) {
+                            <th class="fw-bold border-0">SUCURSAL</th>
+                        }
                         <th class="fw-bold border-0 text-end">STOCK</th>
                         <th class="fw-bold border-0 text-end">MÍNIMO</th>
                         <th class="fw-bold border-0 text-end">COSTO PROM.</th>
                         <th class="fw-bold border-0 text-center">VENCIMIENTO</th>
-                        <th class="text-center border-0" style="width: 80px;"></th>
+                        @if (!esStockAgrupado()) {
+                            <th class="text-center border-0" style="width: 80px;"></th>
+                        }
                     </tr>
                 </thead>
                 <tbody tbody>
-                    @for (item of stock(); track item.id_insumo + '-' + item.id_sucursal) {
+                    @for (item of stock(); track esStockAgrupado() ? item.id_insumo : (item.id_insumo + '-' + item.id_sucursal)) {
                         <tr class="main-row align-middle fila-animada">
                             <td class="ps-3">
                                 <div class="fw-bold text-erp text-uppercase">{{ item.insumo }}</div>
                                 <small class="text-muted-erp">{{ item.unidad_codigo }}</small>
                             </td>
-                            <td>{{ item.sucursal }}</td>
-                            <td class="text-end fw-bold" [class.text-danger]="item.bajo_minimo == 1">{{ item.stock_actual | number:'1.2-4' }}</td>
-                            <td class="text-end">{{ item.stock_minimo | number:'1.2-4' }}</td>
+                            @if (!esStockAgrupado()) {
+                                <td>{{ item.sucursal }}</td>
+                            }
+                            <td class="text-end fw-bold" [class.text-danger]="item.bajo_minimo == 1">
+                                @if (esStockAgrupado() && item.detalle_sucursales?.length) {
+                                    <span class="stock-total-wrap"
+                                          (mouseenter)="activarStockTooltip($event, item)"
+                                          (mousemove)="moverStockTooltip($event)"
+                                          (mouseleave)="ocultarStockTooltip()">
+                                        {{ item.stock_actual | number:'1.0-0' }}
+                                    </span>
+                                } @else {
+                                    {{ item.stock_actual | number:'1.0-0' }}
+                                }
+                            </td>
+                            <td class="text-end">{{ item.stock_minimo | number:'1.0-0' }}</td>
                             <td class="text-end">{{ item.costo_promedio | number:'1.2-4' }}</td>
                             <td class="text-center">
                                 @if (item.vencido == 1) {
@@ -73,16 +101,18 @@
                                     <span class="text-muted-erp">—</span>
                                 }
                             </td>
-                            <td class="text-center">
-                                @if (perms.hasPermission('ajustar_inventario')) {
-                                    <button type="button" class="btn-action-edit" (click)="abrirMinimo(modalMinimo, item)" title="Stock mínimo">
-                                        <i class="bi bi-sliders"></i>
-                                    </button>
-                                }
-                            </td>
+                            @if (!esStockAgrupado()) {
+                                <td class="text-center">
+                                    @if (perms.hasPermission('ajustar_inventario')) {
+                                        <button type="button" class="btn-action-edit" (click)="abrirMinimo(modalMinimo, item)" title="Stock mínimo">
+                                            <i class="bi bi-sliders"></i>
+                                        </button>
+                                    }
+                                </td>
+                            }
                         </tr>
                     } @empty {
-                        <tr><td colspan="7" class="text-center py-5 text-muted-erp">No hay stock registrado.</td></tr>
+                        <tr><td [attr.colspan]="esStockAgrupado() ? 6 : 7" class="text-center py-5 text-muted-erp">No hay stock registrado.</td></tr>
                     }
                 </tbody>
             </app-table-pro>
@@ -137,13 +167,17 @@
                                         </ng-select>
                                         <app-form-error [control]="item.get('id_insumo')"></app-form-error>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label">Cantidad <span class="req-star">*</span></label>
-                                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                                        <app-number-field formControlName="cantidad" mode="quantity" [min]="1"></app-number-field>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Costo unit. <span class="req-star">*</span></label>
-                                        <input type="number" min="0" step="0.0001" class="form-control" formControlName="costo_unitario">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Precio costo <span class="req-star">*</span></label>
+                                        <app-number-field formControlName="precio_costo" mode="price" [alignEnd]="true"></app-number-field>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Precio venta</label>
+                                        <app-number-field formControlName="precio_venta" mode="price" [alignEnd]="true"></app-number-field>
                                     </div>
                                     <div class="col-md-1 text-end">
                                         @if (ingresoLoteItems.length > 1) {
@@ -181,9 +215,9 @@
                         </ng-select>
                         <app-form-error [control]="movimientoForm.get('id_sucursal')"></app-form-error>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Cantidad <span class="req-star">*</span></label>
-                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                        <app-number-field formControlName="cantidad" mode="quantity" [min]="1"></app-number-field>
                         <app-form-error [control]="movimientoForm.get('cantidad')"></app-form-error>
                     </div>
 
@@ -198,10 +232,17 @@
                     }
 
                     @if (movimientoTipo() === 'ingreso' || movimientoTipo() === 'ajuste') {
-                        <div class="col-md-3">
-                            <label class="form-label">Costo unitario @if (movimientoTipo() === 'ingreso') { <span class="req-star">*</span> }</label>
-                            <input type="number" min="0" step="0.0001" class="form-control" formControlName="costo_unitario">
-                            <app-form-error [control]="movimientoForm.get('costo_unitario')"></app-form-error>
+                        <div class="col-md-2">
+                            <label class="form-label">Precio costo @if (movimientoTipo() === 'ingreso') { <span class="req-star">*</span> }</label>
+                            <app-number-field formControlName="precio_costo" mode="price" [alignEnd]="true"></app-number-field>
+                            <app-form-error [control]="movimientoForm.get('precio_costo')"></app-form-error>
+                        </div>
+                    }
+
+                    @if (movimientoTipo() === 'ingreso') {
+                        <div class="col-md-2">
+                            <label class="form-label">Precio venta</label>
+                            <app-number-field formControlName="precio_venta" mode="price" [alignEnd]="true"></app-number-field>
                         </div>
                     }
 
@@ -270,14 +311,15 @@
                     <label class="form-label">Hasta</label>
                     <input type="date" class="form-control" formControlName="fecha_hasta">
                 </div>
-                <div class="col-12 text-end">
+                <div class="col-12 d-flex justify-content-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-soft-neutral" (click)="filtrarKardexHoy()">HOY</button>
                     <button type="button" class="btn btn-primary" (click)="filtrarKardex()">FILTRAR KARDEX</button>
                 </div>
             </form>
         </div>
 
         <div class="card-pro table-pro-container mb-3 p-0 p-md-3">
-            <app-table-pro titulo="Kardex" subtitulo="Ingreso, salida, merma y ajuste por sucursal" [hideSearch]="true" [showAddBtn]="false"
+            <app-table-pro titulo="Kardex" subtitulo="Ordenado por fecha/hora (más reciente primero)" [hideSearch]="true" [showAddBtn]="false"
                 [loading]="kardexLoading()" [data]="kardex()" [meta]="kardexMeta()" (pageChange)="cambiarPaginaKardex($event)">
                 <thead thead class="text-uppercase text-muted border-bottom table-header-erp">
                     <tr>
@@ -292,17 +334,19 @@
                     </tr>
                 </thead>
                 <tbody tbody>
-                    @for (item of kardex(); track item.id_kardex) {
-                        <tr class="main-row align-middle fila-animada">
-                            <td class="ps-3">{{ item.fecha_movimiento | date:'short' }}</td>
-                            <td><span class="badge-erp badge-secondary">{{ item.tipo }}</span></td>
+                    @for (item of kardex(); track item.id_kardex; let i = $index) {
+                        <tr class="main-row align-middle fila-animada" [class.kardex-grupo-inicio]="esInicioGrupoKardex(i)">
+                            <td class="ps-3">{{ item.fecha_movimiento | date:'dd/MM/yyyy HH:mm' }}</td>
+                            <td>
+                                <span class="badge-erp" [ngClass]="claseTipoKardex(item.tipo)">{{ etiquetaTipoKardex(item.tipo) }}</span>
+                            </td>
                             <td>
                                 <div class="fw-bold text-erp">{{ item.insumo }}</div>
                                 <small class="text-muted-erp">{{ item.unidad_codigo }} @if (item.codigo_lote) { · {{ item.codigo_lote }} }</small>
                             </td>
                             <td>{{ item.sucursal }}</td>
                             <td class="text-end fw-bold">{{ item.cantidad | number:'1.2-4' }}</td>
-                            <td class="text-end">{{ item.stock_anterior | number:'1.2-4' }} → {{ item.stock_posterior | number:'1.2-4' }}</td>
+                            <td class="text-end">{{ item.stock_anterior | number:'1.0-0' }} → {{ item.stock_posterior | number:'1.0-0' }}</td>
                             <td class="text-end">{{ item.costo_total | number:'1.2-2' }}</td>
                             <td>
                                 <div>{{ item.motivo || '—' }}</div>
@@ -353,7 +397,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Cantidad <span class="req-star">*</span></label>
-                        <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad">
+                        <app-number-field formControlName="cantidad" mode="quantity" [min]="1"></app-number-field>
                         <app-form-error [control]="mermaForm.get('cantidad')"></app-form-error>
                     </div>
                     <div class="col-md-3">
@@ -471,7 +515,7 @@
     <div class="modal-body p-4 bg-card">
         <form [formGroup]="minimoForm">
             <label class="form-label">Cantidad mínima</label>
-            <input type="number" min="0" step="0.0001" class="form-control" formControlName="stock_minimo">
+            <app-number-field formControlName="stock_minimo" mode="quantity" [min]="0"></app-number-field>
             <app-form-error [control]="minimoForm.get('stock_minimo')"></app-form-error>
         </form>
     </div>
@@ -480,3 +524,17 @@
         <button type="button" class="btn btn-primary" (click)="guardarMinimo(modal)">GUARDAR</button>
     </div>
 </ng-template>
+
+@if (stockTooltipVisible()) {
+    <div class="stock-tooltip-floating"
+         [style.left.px]="stockTooltipX()"
+         [style.top.px]="stockTooltipY()">
+        @for (d of stockTooltipDetalle(); track d.id_sucursal) {
+            <div class="stock-tooltip-row">
+                <span class="stock-tooltip-nombre">{{ d.sucursal }}</span>
+                <span class="stock-tooltip-codigo">{{ abrevSucursal(d) }}</span>
+                <span class="stock-tooltip-qty">{{ d.stock_actual | number:'1.0-0' }}</span>
+            </div>
+        }
+    </div>
+}

@@ -32,10 +32,12 @@ import { CartaVitrinaModule } from './erp/carta-vitrina/carta-vitrina.module';
 import { ClientesModule } from './erp/clientes/clientes.module';
 import { PosModule } from './erp/pos/pos.module';
 import { TrasladosModule } from './erp/traslados/traslados.module';
+import { AlcanceModule } from './common/auth/alcance.module';
 
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
+    AlcanceModule,
     DatabaseModule,
     SharedAuthModule,
     SecurityModule,

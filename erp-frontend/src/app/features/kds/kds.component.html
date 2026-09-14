@@ -1,34 +1,43 @@
-<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);"
+     [class.kds-tablet]="esTablet">
     <div class="card-pro mb-3 p-3">
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
             <div>
                 <h5 class="m-0 fw-bold erp-title-section">
                     <span class="icon-badge me-2"><i class="bi bi-fire"></i></span>
-                    KDS — estación
+                    Preparación
                 </h5>
-                <span class="text-muted-erp text-xs-erp">
-                    El stock se descuenta al pulsar PREPARAR.
+                @if (!esTablet) {
+                    <span class="text-muted-erp text-xs-erp">
+                        El stock se descuenta al pulsar PREPARAR.
+                        @if (enVivo()) {
+                            <span class="badge-erp badge-success ms-1">En vivo</span>
+                        } @else {
+                            <span class="badge-erp badge-secondary ms-1">Polling 8 s</span>
+                        }
+                    </span>
+                } @else {
                     @if (enVivo()) {
-                        <span class="badge-erp badge-success ms-1">En vivo</span>
-                    } @else {
-                        <span class="badge-erp badge-secondary ms-1">Polling 8 s</span>
+                        <span class="badge-erp badge-success">En vivo</span>
                     }
-                </span>
+                }
             </div>
             <button type="button" class="btn btn-soft-neutral" (click)="cargar()">
                 <i class="bi bi-arrow-clockwise me-1"></i> ACTUALIZAR
             </button>
         </div>
         <form [formGroup]="filtros" class="row g-3 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label">Sucursal</label>
-                <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
-                           formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
-                           [searchable]="true" [clearable]="!sucursalBloqueada()"
-                           (change)="cargar()" notFoundText="Sin resultados">
-                </ng-select>
-            </div>
-            <div class="col-md-5">
+            @if (!sucursalBloqueada()) {
+                <div class="col-md-5">
+                    <label class="form-label">Sucursal</label>
+                    <ng-select class="ng-select-sm" [items]="sucursales()" bindLabel="nombre" bindValue="id_sucursal"
+                               formControlName="id_sucursal" placeholder="Sucursal" appendTo="body"
+                               [searchable]="true" [clearable]="!sucursalBloqueada()"
+                               (change)="cargar()" notFoundText="Sin resultados">
+                    </ng-select>
+                </div>
+            }
+            <div [class.col-md-5]="!sucursalBloqueada()" [class.col-12]="sucursalBloqueada()">
                 <label class="form-label">Estación</label>
                 <ng-select class="ng-select-sm" [items]="estaciones" bindLabel="etiqueta" bindValue="codigo"
                            formControlName="estacion" placeholder="Todas las permitidas" appendTo="body"

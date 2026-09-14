@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Delete, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Delete, UseGuards, Req, BadRequestException, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -35,5 +35,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Req() _req: any) {
     return this.authService.logout();
+  }
+
+  @Get('contexto')
+  @UseGuards(JwtAuthGuard)
+  contexto(@Req() req: any) {
+    const userId = Number(req.user?.userId || req.user?.sub || 0);
+    if (!userId) throw new BadRequestException('Usuario no autenticado');
+    return this.authService.contexto(userId);
   }
 }

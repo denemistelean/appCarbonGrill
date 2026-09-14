@@ -9,12 +9,13 @@ import { PermissionsService } from 'src/app/core/services/seguridad/permissions.
 import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro.component';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
 import { ErpTabsComponent, ErpTab } from 'src/app/shared/components/erp-tabs/erp-tabs.component';
+import { NumberFieldComponent } from 'src/app/shared/components/number-field/number-field.component';
 import { CategoriasService, PorcionesService, UnidadesService } from './maestros.service';
 
 @Component({
   selector: 'app-maestros',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent, ErpTabsComponent],
+  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent, ErpTabsComponent, NumberFieldComponent],
   templateUrl: './maestros.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

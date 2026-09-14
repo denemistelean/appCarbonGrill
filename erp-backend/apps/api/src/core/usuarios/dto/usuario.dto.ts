@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsString, IsEmail, MinLength } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, MinLength, MaxLength } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateUsuarioDto {
@@ -14,8 +14,10 @@ export class CreateUsuarioDto {
   @IsNotEmpty()
   apellidos!: string;
 
-  @IsEmail({}, { message: 'Correo inválido' })
+  @IsString()
   @IsNotEmpty()
+  @MinLength(3, { message: 'Mínimo 3 caracteres' })
+  @MaxLength(100, { message: 'Máximo 100 caracteres' })
   correo!: string;
 
   @IsString()

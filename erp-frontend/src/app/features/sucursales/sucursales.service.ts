@@ -36,4 +36,14 @@ export class SucursalesService {
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
+
+  uploadLogo(id: number, file: File): Observable<any> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post(`${this.apiUrl}/${id}/logo`, form);
+  }
+
+  removeLogo(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}/logo`);
+  }
 }

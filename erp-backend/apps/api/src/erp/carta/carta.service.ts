@@ -11,6 +11,7 @@ import { AuditoriaService } from '@app/common';
 import { randomBytes } from 'crypto';
 import { DataSource } from 'typeorm';
 import * as QRCode from 'qrcode';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import { PedidosService } from '../pedidos/pedidos.service';
 import { AbrirSesionDto, CartaPedidoDto, LlamarMozoDto } from './carta.dto';
@@ -27,6 +28,7 @@ export class CartaService {
     private readonly auditoriaService: AuditoriaService,
     private readonly pedidosService: PedidosService,
     private readonly config: ConfigService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   async contextoPublico(token: string) {
@@ -124,7 +126,7 @@ export class CartaService {
 
   async qrMesa(idMesa: number, user: RequestUser) {
     const mesa = await this.obtenerMesa(idMesa);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const idRaiz = mesa.mesa_padre_id ? Number(mesa.mesa_padre_id) : Number(mesa.id_mesa);
     const raiz = idRaiz === Number(mesa.id_mesa) ? mesa : await this.obtenerMesa(idRaiz);
     if (!raiz.token_qr) {
@@ -151,7 +153,7 @@ export class CartaService {
 
   async abrirSesion(dto: AbrirSesionDto, user: RequestUser) {
     const mesa = await this.obtenerMesa(dto.id_mesa);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const idRaiz = mesa.mesa_padre_id ? Number(mesa.mesa_padre_id) : Number(mesa.id_mesa);
     const raiz = await this.obtenerMesa(idRaiz);
     const sesion = await this.asegurarSesion(raiz, user.idUsuario, true);
@@ -163,7 +165,7 @@ export class CartaService {
 
   async cerrarSesion(idMesa: number, user: RequestUser) {
     const mesa = await this.obtenerMesa(idMesa);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const raiz = mesa.mesa_padre_id ? Number(mesa.mesa_padre_id) : Number(mesa.id_mesa);
     await this.cerrarSesionesMesa(raiz, user.idUsuario);
     return { ok: true };
@@ -171,8 +173,8 @@ export class CartaService {
 
   async llamados(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance) || alcance.idSucursal;
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance) || alcance.idSucursal;
     const params: any[] = [];
     let where = `WHERE l.estado_registro = 'ACTIVO' AND l.estado = 'PENDIENTE'`;
     if (idSucursal) {
@@ -201,7 +203,7 @@ export class CartaService {
       [id],
     );
     if (!row) throw new NotFoundException('Llamado no encontrado');
-    await this.assertAccesoSucursal(row.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(row.id_sucursal, user);
     if (row.estado !== 'PENDIENTE') throw new ConflictException('El llamado ya fue atendido');
     await this.dataSource.query(
       `UPDATE llamado_mozo SET estado = 'ATENDIDO', fecha_atiende = NOW(), id_usuario_atiende = ?
@@ -353,43 +355,6 @@ export class CartaService {
     );
     if (!row) throw new NotFoundException('Mesa no encontrada');
     return row;
-  }
-
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

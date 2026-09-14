@@ -1,21 +1,47 @@
 <div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
     <div class="card-pro mb-3 p-3">
-        <div class="d-flex flex-wrap justify-content-between gap-2">
-            <div>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="flex-grow-1">
                 <h5 class="m-0 fw-bold erp-title-section">
                     <span class="icon-badge me-2"><i class="bi bi-journal-richtext"></i></span>
                     Carta visual pública
                 </h5>
-                <span class="text-muted-erp text-xs-erp">
-                    Distinta de la carta QR de mesa. El público la ve en
-                    <a [href]="cartaUrl" target="_blank">{{ cartaUrl }}</a>
+                <span class="text-muted-erp text-xs-erp d-block mt-1">
+                    Cada local tiene su propia carta. El público la ve en
+                    <a [href]="cartaUrl()" target="_blank">{{ cartaUrl() }}</a>
                 </span>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2 align-items-end">
+                <div style="min-width: 220px;">
+                    <label class="form-label small text-muted-erp mb-1">Local / sucursal</label>
+                    <ng-select class="ng-select-sm"
+                               [items]="sucursales()"
+                               bindLabel="nombre"
+                               bindValue="id_sucursal"
+                               [ngModel]="idSucursal()"
+                               (ngModelChange)="onSucursalChange($event)"
+                               [disabled]="sucursalBloqueada() || loading()"
+                               [clearable]="false"
+                               [searchable]="sucursales().length > 4"
+                               appendTo="body"
+                               notFoundText="Sin locales">
+                        <ng-template ng-label-tmp let-item="item">
+                            {{ item.nombre_comercial || item.nombre }}
+                        </ng-template>
+                        <ng-template ng-option-tmp let-item="item">
+                            {{ item.nombre_comercial || item.nombre }}
+                        </ng-template>
+                    </ng-select>
+                </div>
                 <button type="button" class="btn btn-sm btn-soft-neutral" (click)="copiarUrl()">Copiar enlace</button>
-                <a class="btn btn-sm btn-primary" [href]="cartaUrl" target="_blank">Ver carta</a>
+                <a class="btn btn-sm btn-primary" [href]="cartaUrl()" target="_blank">Ver carta</a>
             </div>
         </div>
+        @if (idSucursal()) {
+            <p class="small text-muted-erp mb-0 mt-2">
+                Editando carta de: <strong class="text-erp">{{ sucursalLabel() }}</strong>
+            </p>
+        }
     </div>
 
     <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
@@ -32,6 +58,12 @@
                     <label class="form-label">Moneda</label>
                     <input class="form-control" formControlName="moneda">
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tema visual de la carta</label>
+                    <ng-select class="ng-select-sm" [items]="temasCarta" bindLabel="nombre" bindValue="id"
+                               formControlName="tema" [clearable]="false" appendTo="body">
+                    </ng-select>
+                </div>
                 <div class="col-12">
                     <label class="form-label">Subtítulo</label>
                     <input class="form-control" formControlName="tagline">
@@ -39,6 +71,14 @@
                 <div class="col-12">
                     <label class="form-label">Promoción / anuncio</label>
                     <input class="form-control" formControlName="promo">
+                </div>
+                <div class="col-12">
+                    <div class="alert alert-light border small mb-0">
+                        El <strong>logo</strong> de la carta se administra en
+                        <a href="/admin/sucursales">Sucursales</a>
+                        (subir logo del local). En disco queda en
+                        <code>erp-backend/uploads/sucursales/&#123;id&#125;/logo.*</code>
+                    </div>
                 </div>
                 @if (perms.hasPermission('gestionar_carta_visual')) {
                     <div class="col-12">
@@ -225,14 +265,18 @@
                 <app-form-error [control]="prodForm.get('nombre')"></app-form-error>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Precio (S/)</label>
-                <input type="number" step="0.50" class="form-control" formControlName="precio">
+                <label class="form-label">Precio regular (S/)</label>
+                <app-number-field formControlName="precio" mode="price" [alignEnd]="true"></app-number-field>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Precio junior (opcional)</label>
+                <app-number-field formControlName="precio_junior" mode="price" [alignEnd]="true"></app-number-field>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Estación</label>
                 <ng-select class="ng-select-sm" [items]="estaciones" bindLabel="nombre" bindValue="id"
-                           formControlName="estacion" appendTo="body" [searchable]="true" [clearable]="false"
-                           notFoundText="Sin resultados">
+                           formControlName="estacion" appendTo="body" [clearable]="false"
+                           [searchable]="true" notFoundText="Sin resultados">
                 </ng-select>
             </div>
             <div class="col-12">

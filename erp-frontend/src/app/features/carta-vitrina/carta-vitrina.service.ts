@@ -9,51 +9,55 @@ export class CartaVitrinaHttpService {
   private publicaUrl = `${environment.apiUrlGestion}/carta-vitrina`;
   private adminUrl = `${environment.apiUrlGestion}/carta-visual`;
 
-  publica(idSucursal?: number): Observable<any> {
+  private paramsSucursal(idSucursal?: number | null): HttpParams {
     let params = new HttpParams();
     if (idSucursal) params = params.set('id_sucursal', String(idSucursal));
-    return this.http.get(this.publicaUrl, { params });
+    return params;
   }
 
-  admin(): Observable<any> {
-    return this.http.get(this.adminUrl);
+  publica(idSucursal?: number): Observable<any> {
+    return this.http.get(this.publicaUrl, { params: this.paramsSucursal(idSucursal) });
   }
 
-  guardarConfig(data: any): Observable<any> {
-    return this.http.put(`${this.adminUrl}/config`, data);
+  admin(idSucursal?: number | null): Observable<any> {
+    return this.http.get(this.adminUrl, { params: this.paramsSucursal(idSucursal) });
   }
 
-  crearTag(data: any): Observable<any> {
-    return this.http.post(`${this.adminUrl}/tags`, data);
+  guardarConfig(data: any, idSucursal?: number | null): Observable<any> {
+    return this.http.put(`${this.adminUrl}/config`, data, { params: this.paramsSucursal(idSucursal) });
   }
 
-  eliminarTag(id: number): Observable<any> {
-    return this.http.delete(`${this.adminUrl}/tags/${id}`);
+  crearTag(data: any, idSucursal?: number | null): Observable<any> {
+    return this.http.post(`${this.adminUrl}/tags`, data, { params: this.paramsSucursal(idSucursal) });
   }
 
-  guardarProducto(data: any): Observable<any> {
-    return this.http.post(`${this.adminUrl}/productos`, data);
+  eliminarTag(id: number, idSucursal?: number | null): Observable<any> {
+    return this.http.delete(`${this.adminUrl}/tags/${id}`, { params: this.paramsSucursal(idSucursal) });
   }
 
-  toggleDisponible(id: number): Observable<any> {
-    return this.http.patch(`${this.adminUrl}/productos/${id}/disponible`, {});
+  guardarProducto(data: any, idSucursal?: number | null): Observable<any> {
+    return this.http.post(`${this.adminUrl}/productos`, data, { params: this.paramsSucursal(idSucursal) });
   }
 
-  quitarProducto(id: number): Observable<any> {
-    return this.http.delete(`${this.adminUrl}/productos/${id}`);
+  toggleDisponible(id: number, idSucursal?: number | null): Observable<any> {
+    return this.http.patch(`${this.adminUrl}/productos/${id}/disponible`, {}, { params: this.paramsSucursal(idSucursal) });
   }
 
-  restaurarProducto(id: number): Observable<any> {
-    return this.http.patch(`${this.adminUrl}/productos/${id}/visible`, {});
+  quitarProducto(id: number, idSucursal?: number | null): Observable<any> {
+    return this.http.delete(`${this.adminUrl}/productos/${id}`, { params: this.paramsSucursal(idSucursal) });
   }
 
-  subirImagen(id: number, file: File): Observable<any> {
+  restaurarProducto(id: number, idSucursal?: number | null): Observable<any> {
+    return this.http.patch(`${this.adminUrl}/productos/${id}/visible`, {}, { params: this.paramsSucursal(idSucursal) });
+  }
+
+  subirImagen(id: number, file: File, idSucursal?: number | null): Observable<any> {
     const fd = new FormData();
     fd.append('file', file);
-    return this.http.post(`${this.adminUrl}/productos/${id}/imagen`, fd);
+    return this.http.post(`${this.adminUrl}/productos/${id}/imagen`, fd, { params: this.paramsSucursal(idSucursal) });
   }
 
-  quitarImagen(id: number): Observable<any> {
-    return this.http.delete(`${this.adminUrl}/productos/${id}/imagen`);
+  quitarImagen(id: number, idSucursal?: number | null): Observable<any> {
+    return this.http.delete(`${this.adminUrl}/productos/${id}/imagen`, { params: this.paramsSucursal(idSucursal) });
   }
 }

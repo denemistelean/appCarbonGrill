@@ -7,3 +7,158 @@
 .cuenta-row:hover {
   border-color: var(--erp-primary, #0d6efd);
 }
+
+.cuenta-row-warn {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+.cuenta-row-warn:hover {
+  border-color: #f59e0b;
+}
+
+/* ---- Progreso de pagos (estilo chips de estado) ---- */
+.pago-progreso-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.pago-progreso-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.pago-progreso-pct.pago-progreso-ok {
+  color: #15803d;
+}
+
+.pago-progreso-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.pago-progreso-track-sm {
+  height: 6px;
+}
+
+.pago-progreso-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
+  transition: width 0.35s ease;
+}
+
+.pago-progreso-fill-ok {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.pago-progreso-fill-cuenta {
+  background: linear-gradient(90deg, #38bdf8, #0284c7);
+}
+
+.pago-cuenta-mini {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.pago-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pago-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.pago-chip-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+}
+
+.pago-chip-estado {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #64748b;
+}
+
+.pago-chip-monto {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.pago-chip-ref {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.pago-chip-quitar {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+}
+
+.pago-chip-quitar:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.pago-chip-efectivo {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.pago-chip-efectivo .pago-chip-estado { background: #059669; }
+
+.pago-chip-wallet {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+.pago-chip-wallet .pago-chip-estado { background: #7c3aed; }
+
+.pago-chip-tarjeta {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.pago-chip-tarjeta .pago-chip-estado { background: #2563eb; }
+
+.pago-chip-transfer {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.pago-chip-transfer .pago-chip-estado { background: #ea580c; }
+
+.pago-chip-otro {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.pago-chip-otro .pago-chip-estado { background: #475569; }

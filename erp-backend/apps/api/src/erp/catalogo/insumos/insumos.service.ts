@@ -34,7 +34,7 @@ export class InsumosService {
     `;
     const [data, totalRows] = await Promise.all([
       this.dataSource.query(
-        `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario, i.estado_registro,
+        `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario, i.precio_venta, i.estado_registro,
                 um.codigo AS unidad_codigo, um.nombre AS unidad
          ${from}
          ORDER BY i.nombre ASC
@@ -49,7 +49,7 @@ export class InsumosService {
 
   async lista() {
     return this.dataSource.query(
-      `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario,
+      `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario, i.precio_venta,
               um.codigo AS unidad_codigo, um.nombre AS unidad,
               CONCAT(i.nombre, ' (', um.codigo, ')') AS etiqueta
        FROM insumo i
@@ -73,7 +73,7 @@ export class InsumosService {
   async findOne(id: number) {
     this.assertId(id);
     const [row] = await this.dataSource.query(
-      `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario, i.estado_registro,
+      `SELECT i.id_insumo, i.nombre, i.id_unidad_medida, i.costo_unitario, i.precio_venta, i.estado_registro,
               um.codigo AS unidad_codigo, um.nombre AS unidad
        FROM insumo i
        INNER JOIN unidad_medida um ON um.id_unidad_medida = i.id_unidad_medida
@@ -87,9 +87,9 @@ export class InsumosService {
   async create(dto: CreateInsumoDto, userId: number) {
     const payload = await this.normalize(dto);
     const result = await this.dataSource.query(
-      `INSERT INTO insumo (nombre, id_unidad_medida, costo_unitario, id_usuario_crea)
-       VALUES (?, ?, ?, ?)`,
-      [payload.nombre, payload.id_unidad_medida, payload.costo_unitario, userId],
+      `INSERT INTO insumo (nombre, id_unidad_medida, costo_unitario, precio_venta, id_usuario_crea)
+       VALUES (?, ?, ?, ?, ?)`,
+      [payload.nombre, payload.id_unidad_medida, payload.costo_unitario, payload.precio_venta, userId],
     );
     const id = Number(result.insertId);
     await this.dataSource.query(
@@ -110,9 +110,9 @@ export class InsumosService {
     const payload = await this.normalize({ ...oldValues, ...dto });
     const result = await this.dataSource.query(
       `UPDATE insumo
-       SET nombre = ?, id_unidad_medida = ?, costo_unitario = ?, id_usuario_mod = ?
+       SET nombre = ?, id_unidad_medida = ?, costo_unitario = ?, precio_venta = ?, id_usuario_mod = ?
        WHERE id_insumo = ? AND estado_registro = 'ACTIVO'`,
-      [payload.nombre, payload.id_unidad_medida, payload.costo_unitario, userId, id],
+      [payload.nombre, payload.id_unidad_medida, payload.costo_unitario, payload.precio_venta, userId, id],
     );
     if (result.affectedRows === 0) throw new NotFoundException('Insumo no encontrado');
     const updated = await this.findOne(id);
@@ -153,7 +153,8 @@ export class InsumosService {
     return {
       nombre: String(dto.nombre || '').trim().toUpperCase(),
       id_unidad_medida: idUnidad,
-      costo_unitario: Math.round(Number(dto.costo_unitario || 0) * 10000) / 10000,
+      costo_unitario: Math.round(Number(dto.costo_unitario || 0) * 100) / 100,
+      precio_venta: Math.round(Number(dto.precio_venta ?? 0) * 100) / 100,
     };
   }
 

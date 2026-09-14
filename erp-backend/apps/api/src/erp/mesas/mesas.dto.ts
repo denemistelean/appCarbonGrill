@@ -126,3 +126,49 @@ export class SepararMesasDto {
   @Min(1)
   id_mesa!: number;
 }
+
+export const TIPOS_FORMA_MAPA = ['RECT', 'L', 'CIRCLE', 'CUSTOM'] as const;
+export type TipoFormaMapa = (typeof TIPOS_FORMA_MAPA)[number];
+
+export const TIPOS_LANDMARK = ['TV', 'BANO', 'ESCALERA', 'COCINA', 'CAJA', 'ENTRADA'] as const;
+export type TipoLandmark = (typeof TIPOS_LANDMARK)[number];
+
+export class LandmarkMapaDto {
+  @IsIn(TIPOS_LANDMARK)
+  tipo!: TipoLandmark;
+
+  @Type(() => Number)
+  @Min(0)
+  @Max(100)
+  x!: number;
+
+  @Type(() => Number)
+  @Min(0)
+  @Max(100)
+  y!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  etiqueta?: string;
+}
+
+export class GuardarSalonMapaDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  id_sucursal!: number;
+
+  @IsIn(TIPOS_FORMA_MAPA)
+  tipo_forma!: TipoFormaMapa;
+
+  @IsOptional()
+  @IsArray()
+  puntos?: number[][];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LandmarkMapaDto)
+  landmarks?: LandmarkMapaDto[];
+}

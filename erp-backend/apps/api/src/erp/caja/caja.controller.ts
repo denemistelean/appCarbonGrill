@@ -62,6 +62,12 @@ export class CajaController {
     return this.cajaService.pendientes(query, resolveRequestUser(req));
   }
 
+  @Get('sin-comprobante')
+  @RequirePermissions('CAJA', 'ver_caja')
+  sinComprobante(@Query() query: any, @Req() req: any) {
+    return this.cajaService.sinComprobante(query, resolveRequestUser(req));
+  }
+
   @Get('cuentas/:idPedido/precuenta')
   @RequirePermissions('CAJA', 'ver_precuenta')
   async precuenta(@Param('idPedido') idPedido: string, @Req() req: any, @Res() res: Response) {

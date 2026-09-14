@@ -8,6 +8,8 @@ import {
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource, QueryRunner } from 'typeorm';
+import { AlcanceService } from '../../common/auth/alcance.service';
+import { AlcanceSucursal } from '../../common/auth/alcance.interface';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import {
   AjusteInventarioDto,
@@ -19,8 +21,6 @@ import {
   SalidaInventarioDto,
   UpdateStockMinimoDto,
 } from './inventario.dto';
-
-type AlcanceSucursal = { esSuperadmin: boolean; idSucursal: number | null };
 
 type StockBloqueado = {
   id_insumo_stock: number;
@@ -34,11 +34,12 @@ export class InventarioService {
   constructor(
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   async listaInsumos() {
     return this.dataSource.query(
-      `SELECT i.id_insumo, i.nombre, i.costo_unitario,
+      `SELECT i.id_insumo, i.nombre, i.costo_unitario, i.precio_venta,
               um.codigo AS unidad_codigo, um.nombre AS unidad,
               CONCAT(i.nombre, ' (', um.codigo, ')') AS etiqueta
        FROM insumo i
@@ -50,7 +51,7 @@ export class InventarioService {
   }
 
   async listaSucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO'`;
     if (!alcance.esSuperadmin) {
@@ -81,15 +82,18 @@ export class InventarioService {
   }
 
   async stock(query: any, user: RequestUser) {
-    this.assertQueryScalars(query, ['page', 'limit', 'search', 'id_insumo', 'id_sucursal', 'bajo_minimo']);
-    const alcance = await this.resolverAlcance(user);
+    this.assertQueryScalars(query, ['page', 'limit', 'search', 'id_insumo', 'id_sucursal', 'bajo_minimo', 'agrupado']);
+    if (this.isTruthy(query.agrupado)) {
+      return this.stockAgrupado(query, user);
+    }
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE i.estado_registro = 'ACTIVO' AND s.estado_registro = 'ACTIVO'`;
 
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND s.id_sucursal = ?`;
       params.push(idSucursal);
@@ -142,11 +146,127 @@ export class InventarioService {
     return { data, meta: { total: Number(totalRows[0]?.total || 0), page, limit } };
   }
 
+  async stockAgrupado(query: any, user: RequestUser) {
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const page = this.toPositiveNumber(query.page, 1);
+    const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
+    const offset = (page - 1) * limit;
+    const params: any[] = [];
+    let where = `WHERE i.estado_registro = 'ACTIVO'`;
+
+    if (!alcance.esSuperadmin) {
+      where += ` AND st.id_sucursal = ?`;
+      params.push(alcance.idSucursal);
+    }
+    this.addNumberFilter(query, 'id_insumo', 'i.id_insumo', params, (sql) => (where += sql));
+
+    if (query.search) {
+      const search = `%${String(query.search).trim()}%`;
+      where += ` AND (i.nombre LIKE ? OR um.codigo LIKE ?)`;
+      params.push(search, search);
+    }
+
+    const having = this.isTruthy(query.bajo_minimo)
+      ? `HAVING SUM(COALESCE(st.stock_actual, 0)) <= SUM(COALESCE(st.stock_minimo, 0))
+              AND SUM(COALESCE(st.stock_minimo, 0)) > 0`
+      : '';
+
+    const from = `
+      FROM insumo i
+      INNER JOIN unidad_medida um ON um.id_unidad_medida = i.id_unidad_medida
+      LEFT JOIN insumo_stock st ON st.id_insumo = i.id_insumo AND st.estado_registro = 'ACTIVO'
+      LEFT JOIN sucursal s ON s.id_sucursal = st.id_sucursal AND s.estado_registro = 'ACTIVO'
+      LEFT JOIN (
+        SELECT id_insumo, id_sucursal, MIN(fecha_vencimiento) AS proximo_vto
+        FROM insumo_lote
+        WHERE estado_registro = 'ACTIVO' AND cantidad_actual > 0 AND fecha_vencimiento IS NOT NULL
+        GROUP BY id_insumo, id_sucursal
+      ) v ON v.id_insumo = i.id_insumo AND v.id_sucursal = st.id_sucursal
+      ${where}
+    `;
+
+    const groupBy = `GROUP BY i.id_insumo, i.nombre, um.codigo, um.nombre, i.costo_unitario`;
+
+    const [data, totalRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT i.id_insumo, i.nombre AS insumo, um.codigo AS unidad_codigo, um.nombre AS unidad,
+                SUM(COALESCE(st.stock_actual, 0)) AS stock_actual,
+                SUM(COALESCE(st.stock_minimo, 0)) AS stock_minimo,
+                CASE
+                  WHEN SUM(COALESCE(st.stock_actual, 0)) <= SUM(COALESCE(st.stock_minimo, 0))
+                       AND SUM(COALESCE(st.stock_minimo, 0)) > 0 THEN 1
+                  ELSE 0
+                END AS bajo_minimo,
+                CASE
+                  WHEN SUM(COALESCE(st.stock_actual, 0)) > 0 THEN
+                    SUM(COALESCE(st.stock_actual, 0) * COALESCE(st.costo_promedio, i.costo_unitario))
+                    / SUM(COALESCE(st.stock_actual, 0))
+                  ELSE COALESCE(i.costo_unitario, 0)
+                END AS costo_promedio,
+                MIN(v.proximo_vto) AS proximo_vto,
+                MAX(CASE WHEN v.proximo_vto IS NOT NULL AND v.proximo_vto <= CURDATE() THEN 1 ELSE 0 END) AS vencido
+         ${from}
+         ${groupBy}
+         ${having}
+         ORDER BY i.nombre ASC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset],
+      ),
+      this.dataSource.query(
+        `SELECT COUNT(*) AS total FROM (
+           SELECT i.id_insumo ${from} ${groupBy} ${having}
+         ) t`,
+        params,
+      ),
+    ]);
+
+    const ids = data.map((row: any) => Number(row.id_insumo)).filter((id: number) => id > 0);
+    const detalleMap = new Map<number, any[]>();
+    if (ids.length) {
+      const detalleParams: any[] = [...ids];
+      let detalleWhere = `WHERE st.id_insumo IN (${ids.map(() => '?').join(',')})
+        AND st.estado_registro = 'ACTIVO'
+        AND s.estado_registro = 'ACTIVO'
+        AND COALESCE(st.stock_actual, 0) > 0`;
+      if (!alcance.esSuperadmin) {
+        detalleWhere += ` AND st.id_sucursal = ?`;
+        detalleParams.push(alcance.idSucursal);
+      }
+      const detalleRows = await this.dataSource.query(
+        `SELECT st.id_insumo, s.id_sucursal, s.codigo, s.nombre AS sucursal, s.tipo,
+                COALESCE(st.stock_actual, 0) AS stock_actual
+         FROM insumo_stock st
+         INNER JOIN sucursal s ON s.id_sucursal = st.id_sucursal
+         ${detalleWhere}
+         ORDER BY s.tipo ASC, s.nombre ASC, s.id_sucursal ASC`,
+        detalleParams,
+      );
+      for (const row of detalleRows) {
+        const idInsumo = Number(row.id_insumo);
+        if (!detalleMap.has(idInsumo)) detalleMap.set(idInsumo, []);
+        detalleMap.get(idInsumo)!.push({
+          id_sucursal: Number(row.id_sucursal),
+          codigo: row.codigo,
+          sucursal: row.sucursal,
+          tipo: row.tipo,
+          stock_actual: Number(row.stock_actual),
+        });
+      }
+    }
+
+    for (const row of data) {
+      row.agrupado = 1;
+      row.detalle_sucursales = detalleMap.get(Number(row.id_insumo)) || [];
+    }
+
+    return { data, meta: { total: Number(totalRows[0]?.total || 0), page, limit, agrupado: true } };
+  }
+
   async lotes(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_insumo', 'id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idInsumo = Number(query.id_insumo);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (!idInsumo || Number.isNaN(idInsumo)) throw new BadRequestException('Insumo inválido');
     if (!idSucursal) throw new BadRequestException('Sucursal requerida');
 
@@ -162,8 +282,7 @@ export class InventarioService {
   }
 
   async actualizarMinimo(dto: UpdateStockMinimoDto, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    this.assertSucursalPermitida(dto.id_sucursal, alcance);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     const minimo = this.round4(dto.stock_minimo);
 
     const qr = this.dataSource.createQueryRunner();
@@ -196,7 +315,7 @@ export class InventarioService {
   }
 
   async ingreso(dto: IngresoInventarioDto, user: RequestUser) {
-    return this.ejecutarMovimiento({
+    const result = await this.ejecutarMovimiento({
       tipo: 'INGRESO',
       idInsumo: dto.id_insumo,
       idSucursal: dto.id_sucursal,
@@ -209,12 +328,16 @@ export class InventarioService {
       idLote: null,
       user,
     });
+    await this.syncInsumoPrecios(dto.id_insumo, user.idUsuario, {
+      costo_unitario: dto.costo_unitario,
+      precio_venta: dto.precio_venta,
+    });
+    return result;
   }
 
   /** Varios insumos en un solo registro (misma sucursal, un kardex por ítem, TX atómica). */
   async ingresoLote(dto: IngresoLoteDto, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    this.assertSucursalPermitida(dto.id_sucursal, alcance);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
 
     const motivo = (dto.motivo || 'COMPRA').trim().toUpperCase();
     const detalle = dto.detalle?.trim() || null;
@@ -251,6 +374,11 @@ export class InventarioService {
           loteCodigo: item.lote?.trim().toUpperCase() || null,
           fechaVencimiento: item.fecha_vencimiento || null,
         });
+
+        await this.syncInsumoPrecios(item.id_insumo, user.idUsuario, {
+          costo_unitario: item.costo_unitario ?? costo,
+          precio_venta: item.precio_venta,
+        }, qr);
 
         resultados.push({
           id_kardex: res.id_kardex,
@@ -332,14 +460,14 @@ export class InventarioService {
 
   async kardex(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_insumo', 'id_sucursal', 'tipo', 'fecha_desde', 'fecha_hasta']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE k.estado_registro = 'ACTIVO'`;
 
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND k.id_sucursal = ?`;
       params.push(idSucursal);
@@ -381,7 +509,7 @@ export class InventarioService {
                 k.id_sucursal, s.nombre AS sucursal,
                 l.codigo_lote, CONCAT(u.nombres, ' ', u.apellidos) AS usuario
          ${from}
-         ORDER BY k.fecha_movimiento DESC, k.id_kardex DESC
+         ORDER BY k.fecha_movimiento DESC, i.nombre ASC, k.id_kardex ASC
          LIMIT ? OFFSET ?`,
         [...params, limit, offset],
       ),
@@ -393,7 +521,7 @@ export class InventarioService {
 
   async mermas(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_insumo', 'id_sucursal', 'motivo', 'fecha_desde', 'fecha_hasta']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
@@ -427,7 +555,7 @@ export class InventarioService {
 
   async mermasResumen(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_insumo', 'id_sucursal', 'motivo', 'fecha_desde', 'fecha_hasta']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const { where, params } = this.buildMermaWhere(query, alcance);
     return this.dataSource.query(
       `SELECT m.motivo, COUNT(*) AS movimientos,
@@ -444,7 +572,7 @@ export class InventarioService {
   private buildMermaWhere(query: any, alcance: AlcanceSucursal) {
     const params: any[] = [];
     let where = `WHERE m.estado_registro = 'ACTIVO'`;
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND m.id_sucursal = ?`;
       params.push(idSucursal);
@@ -484,8 +612,7 @@ export class InventarioService {
     motivoMerma?: MotivoMerma;
     user: RequestUser;
   }) {
-    const alcance = await this.resolverAlcance(params.user);
-    this.assertSucursalPermitida(params.idSucursal, alcance);
+    await this.alcanceService.assertAccesoSucursal(params.idSucursal, params.user);
     const deltaSigno = this.signoMovimiento(params.tipo, params.sentido);
 
     const qr = this.dataSource.createQueryRunner();
@@ -882,6 +1009,30 @@ export class InventarioService {
     };
   }
 
+  private async syncInsumoPrecios(
+    idInsumo: number,
+    userId: number,
+    precios: { costo_unitario?: number; precio_venta?: number },
+    qr?: QueryRunner,
+  ) {
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (precios.costo_unitario != null && !Number.isNaN(Number(precios.costo_unitario))) {
+      sets.push('costo_unitario = ?');
+      params.push(Math.round(Number(precios.costo_unitario) * 100) / 100);
+    }
+    if (precios.precio_venta != null && !Number.isNaN(Number(precios.precio_venta))) {
+      sets.push('precio_venta = ?');
+      params.push(Math.round(Number(precios.precio_venta) * 100) / 100);
+    }
+    if (!sets.length) return;
+    sets.push('id_usuario_mod = ?');
+    params.push(userId, idInsumo);
+    const sql = `UPDATE insumo SET ${sets.join(', ')} WHERE id_insumo = ? AND estado_registro = 'ACTIVO'`;
+    if (qr) await qr.query(sql, params);
+    else await this.dataSource.query(sql, params);
+  }
+
   private async ensureStockRow(qr: QueryRunner, idInsumo: number, idSucursal: number, userId: number) {
     await qr.query(
       `INSERT INTO insumo_stock (id_insumo, id_sucursal, stock_actual, stock_minimo, costo_promedio, id_usuario_crea)
@@ -932,50 +1083,6 @@ export class InventarioService {
       [idSucursal],
     );
     if (!row) throw new NotFoundException('Sucursal no encontrada o inactiva');
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(
-      `SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`,
-      [user.idRol],
-    );
-    const esSuperadmin = String(rol?.nombre || '') === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null };
-
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal
-       FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ?
-         AND a.estado_registro = 'ACTIVO'
-         AND a.vigente_hasta IS NULL
-         AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC
-       LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal };
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
-  }
-
-  private assertSucursalPermitida(idSucursal: number, alcance: AlcanceSucursal) {
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
   }
 
   private addNumberFilter(

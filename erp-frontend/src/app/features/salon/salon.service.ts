@@ -22,6 +22,15 @@ export class SalonService {
     return this.http.get(`${this.apiUrl}/mapa`, { params });
   }
 
+  guardarPlano(data: {
+    id_sucursal: number;
+    tipo_forma: string;
+    puntos?: number[][];
+    landmarks?: any[];
+  }): Observable<any> {
+    return this.http.put(`${this.apiUrl}/plano`, data);
+  }
+
   lista(idSucursal: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/lista`, { params: new HttpParams().set('id_sucursal', String(idSucursal)) });
   }

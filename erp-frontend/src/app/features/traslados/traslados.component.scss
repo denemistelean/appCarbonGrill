@@ -3,3 +3,16 @@
 .badge-danger { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
 .badge-primary { background: rgba(var(--erp-primary-rgb), 0.15); color: var(--erp-primary); }
 .table-danger td { background: rgba(239, 68, 68, 0.08) !important; }
+
+.traslado-item-block {
+  border-bottom: 1px solid var(--erp-border-soft);
+}
+
+.traslado-item-block:last-of-type {
+  border-bottom: none;
+}
+
+.traslado-stock-hint {
+  padding-left: 0.15rem;
+  white-space: nowrap;
+}

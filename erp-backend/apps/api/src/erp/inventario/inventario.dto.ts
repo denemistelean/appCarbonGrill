@@ -39,14 +39,20 @@ export class IngresoInventarioDto {
   id_sucursal!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0.0001)
+  @IsInt()
+  @Min(1)
   cantidad!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   costo_unitario!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  precio_venta?: number;
 
   @IsOptional()
   @IsString()
@@ -80,8 +86,8 @@ export class SalidaInventarioDto {
   id_sucursal!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0.0001)
+  @IsInt()
+  @Min(1)
   cantidad!: number;
 
   @IsOptional()
@@ -114,8 +120,8 @@ export class AjusteInventarioDto {
   id_sucursal!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0.0001)
+  @IsInt()
+  @Min(1)
   cantidad!: number;
 
   @IsIn(['INGRESO', 'SALIDA'])
@@ -150,8 +156,8 @@ export class CreateMermaDto {
   id_sucursal!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0.0001)
+  @IsInt()
+  @Min(1)
   cantidad!: number;
 
   @IsIn(MOTIVOS_MERMA)
@@ -193,15 +199,21 @@ export class IngresoLoteItemDto {
   id_insumo!: number;
 
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0.0001)
+  @IsInt()
+  @Min(1)
   cantidad!: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   costo_unitario?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  precio_venta?: number;
 
   @IsOptional()
   @IsString()

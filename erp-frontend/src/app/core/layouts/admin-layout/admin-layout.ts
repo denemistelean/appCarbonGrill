@@ -1,7 +1,7 @@
 import { Component, OnInit, TemplateRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
 import { NgbDropdownModule, NgbModal, NgbModalModule, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { Sidebar } from '../sidebar/sidebar';
 import { SettingsPanel } from '../settings-panel/settings-panel';
@@ -9,6 +9,7 @@ import { ToastComponent } from '../../components/toast/toast';
 import { LayoutService } from '../../services/layout.service';
 import { PermissionsService } from '../../services/seguridad/permissions.service';
 import { AuthService } from '../../services/auth.service';
+import { SessionContextService } from '../../services/session-context.service';
 import { AlertService } from '../../services/ui/alert.service';
 
 @Component({
@@ -17,6 +18,8 @@ import { AlertService } from '../../services/ui/alert.service';
   imports: [
     CommonModule,
     RouterModule,
+    RouterLink,
+    RouterLinkActive,
     ReactiveFormsModule,
     NgbModalModule,
     NgbDropdownModule,
@@ -31,11 +34,16 @@ export class AdminLayout implements OnInit {
   public layoutService = inject(LayoutService);
   private permissionsService = inject(PermissionsService);
   private auth = inject(AuthService);
+  sessionContext = inject(SessionContextService);
   private modal = inject(NgbModal);
   private alert = inject(AlertService);
   private fb = inject(FormBuilder);
 
   usuarioLabel = '';
+
+  get esTablet(): boolean {
+    return this.sessionContext.esTabletOperativo();
+  }
 
   claveForm = this.fb.group({
     clave_actual: ['', Validators.required],
@@ -54,12 +62,14 @@ export class AdminLayout implements OnInit {
     this.layoutService.showLoader();
 
     if (this.permissionsService.permissionsSignal().length > 0) {
-      this.layoutService.hideLoader();
+      this.sessionContext.load().finally(() => this.layoutService.hideLoader());
       return;
     }
 
     this.permissionsService.loadPermissions().subscribe({
-      next: () => this.layoutService.hideLoader(),
+      next: () => {
+        this.sessionContext.load().finally(() => this.layoutService.hideLoader());
+      },
       error: () => this.layoutService.hideLoader(),
     });
   }

@@ -5,6 +5,7 @@ import {
   ActualizarPosicionesDto,
   CambiarEstadoMesaDto,
   CreateMesaDto,
+  GuardarSalonMapaDto,
   SepararMesasDto,
   UnirMesasDto,
   UpdateMesaDto,
@@ -32,6 +33,20 @@ export class MesasController {
   @RequirePermissions('MESAS', 'ver_mesa')
   mapa(@Query() query: any, @Req() req: any) {
     return this.mesasService.mapa(query, resolveRequestUser(req));
+  }
+
+  @Get('plano')
+  @RequirePermissions('MESAS', 'ver_mesa')
+  async plano(@Query() query: any, @Req() req: any) {
+    const user = resolveRequestUser(req);
+    const data = await this.mesasService.mapa({ id_sucursal: query.id_sucursal }, user);
+    return data.plano;
+  }
+
+  @Put('plano')
+  @RequirePermissions('MESAS', 'actualizar_mesa')
+  guardarPlano(@Body() dto: GuardarSalonMapaDto, @Req() req: any) {
+    return this.mesasService.guardarPlano(dto, resolveRequestUser(req));
   }
 
   @Get('lista')

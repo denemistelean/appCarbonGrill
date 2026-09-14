@@ -54,6 +54,12 @@ header.carta-header {
   align-items: center;
   gap: 10px;
 }
+.carta-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+}
 .header-spacer { width: 42px; flex-shrink: 0; }
 
 .logo-fire {
@@ -412,3 +418,157 @@ h1 {
   color: #ff4d4d;
   font-weight: 600;
 }
+
+.price-dual {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.price-dual span {
+  display: block;
+  font-size: 0.65rem;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.logo-dp {
+  background: radial-gradient(circle, #d7a52b, #9d1c27) !important;
+  box-shadow: 0 0 18px rgba(157, 28, 39, 0.35) !important;
+}
+
+/* ── Tema DON PAPAS ── */
+.carta-root.tema-don-papas {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(215, 165, 43, 0.16), transparent 30%),
+    linear-gradient(180deg, #f5f0dc 0%, #eef2f5 45%, #f5f0dc 100%);
+  color: #1d2026;
+  font-family: 'Poppins', sans-serif;
+}
+
+.tema-don-papas header.carta-header {
+  background: linear-gradient(135deg, rgba(157, 28, 39, 0.98), rgba(116, 18, 27, 0.98));
+  border-bottom: 5px solid #d7a52b;
+  color: #fff;
+}
+
+.tema-don-papas .menu-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.tema-don-papas .menu-toggle:hover {
+  background: #d7a52b;
+  border-color: #d7a52b;
+  color: #1d2026;
+}
+
+.tema-don-papas .carta-logo {
+  background: #f5f0dc;
+  border: 3px solid #d7a52b;
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+}
+
+.tema-don-papas h1 {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.tema-don-papas .subtitle {
+  color: #f0c85a;
+}
+
+.tema-don-papas .promo-banner {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-radius: 999px;
+}
+
+.tema-don-papas .search-box {
+  background: transparent;
+}
+.tema-don-papas .search-input-wrap {
+  background: transparent;
+  border: none;
+  color: #1d2026;
+}
+.tema-don-papas .search-input-wrap input {
+  background: #fffdf5 !important;
+  border: 1px solid #c8d4df !important;
+  color: #1d2026 !important;
+  box-shadow: 0 2px 10px rgba(39, 35, 29, 0.08);
+}
+.tema-don-papas .search-input-wrap input::placeholder {
+  color: #8a929b;
+  opacity: 1;
+}
+.tema-don-papas .search-input-wrap input:focus {
+  border-color: #9d1c27 !important;
+  background: #ffffff !important;
+}
+.tema-don-papas .search-input-wrap i { color: #9d1c27; }
+
+.tema-don-papas .cat-sidebar {
+  background: #fffdf5;
+  border-right: 1px solid #dfe7ee;
+  color: #1d2026;
+}
+.tema-don-papas .cat-item {
+  color: #1d2026;
+}
+.tema-don-papas .cat-item.active,
+.tema-don-papas .cat-item:hover {
+  background: rgba(157, 28, 39, 0.1);
+  color: #9d1c27;
+}
+
+.tema-don-papas .section-title {
+  color: #9d1c27;
+  border-bottom-color: #d7a52b;
+}
+
+.tema-don-papas .card-plato {
+  background: #fff;
+  border: 1px solid #dfe7ee;
+  box-shadow: 0 12px 30px rgba(39, 35, 29, 0.08);
+  color: #1d2026;
+}
+.tema-don-papas .card-title { color: #1d2026; }
+.tema-don-papas .card-desc { color: #69717b; }
+.tema-don-papas .card-price { color: #9d1c27; }
+.tema-don-papas .price-dual span { color: #69717b; }
+.tema-don-papas .btn-view-photo {
+  background: #9d1c27;
+  border-color: #9d1c27;
+  color: #fff;
+}
+.tema-don-papas .info-badge-box {
+  background: #fff8e6;
+  border: 1px solid #ead9a8;
+  border-left: 4px solid #d7a52b;
+  color: #63552f;
+}
+.tema-don-papas .tag-item {
+  background: #9d1c27;
+  color: #fff;
+}
+.tema-don-papas .empty { color: #69717b; }
+.tema-don-papas .estado-msg { color: #69717b; }
+.tema-don-papas .estado-msg.off { color: #9d1c27; }
+.tema-don-papas .active-filter {
+  background: #fff;
+  border-color: #dfe7ee;
+  color: #1d2026;
+}
+.tema-don-papas .modal-content {
+  background: #fffdf5;
+  color: #1d2026;
+  border: 1px solid #dfe7ee;
+}
+.tema-don-papas .modal-header { border-bottom-color: #dfe7ee; }
+.tema-don-papas .close-btn { color: #69717b; }
+.tema-don-papas .img-preview-large { border-color: #dfe7ee; }
+

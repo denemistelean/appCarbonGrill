@@ -1,13 +1,15 @@
 <!-- LOGO -->
 <div class="sidebar-logo">
   <div class="d-flex align-items-center gap-2">
-    @if (!logoError()) {
+    @if (ctx.logoUrl()) {
+      <img [src]="ctx.logoUrl()" alt="Logo" class="sidebar-logo-img" (error)="logoError.set(true)">
+    } @else if (!logoError()) {
       <img src="assets/img/logo.png" alt="Logo" class="sidebar-logo-img" (error)="logoError.set(true)">
     } @else {
       <i class="bi bi-geo-alt-fill logo-icon"></i>
     }
     <div>
-      <div class="logo-text">CARBON GRILL</div>
+      <div class="logo-text">{{ ctx.nombreMarca() }}</div>
       <div class="logo-sub">Sistema de gestión</div>
     </div>
   </div>
@@ -79,6 +81,9 @@
       <div class="user-role">
         <span class="online-dot"></span>
         {{ usuarioActual?.nombre_rol || 'En Línea' }}
+        @if (ctx.idSucursal()) {
+          <span class="ms-1 opacity-75">· {{ ctx.context()?.sucursal_nombre }}</span>
+        }
       </div>
     </div>
     <button class="logout-btn" title="Cerrar Sesión" (click)="logout()">

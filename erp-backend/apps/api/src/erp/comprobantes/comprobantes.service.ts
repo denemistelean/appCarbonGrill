@@ -9,6 +9,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource, QueryRunner } from 'typeorm';
 import { RequestUser } from '../../common/auth/request-user.interface';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import {
   AnularComprobanteDto,
   CrearSerieDto,
@@ -16,8 +17,6 @@ import {
   EmitirNotaCreditoDto,
 } from './comprobantes.dto';
 import { OsePayload, OseService } from './ose.service';
-
-type AlcanceSucursal = { esSuperadmin: boolean; idSucursal: number | null; rol: string };
 
 const IGV = 0.18;
 const LIMITE_BOLETA_SIN_DOC = 700;
@@ -28,6 +27,7 @@ export class ComprobantesService {
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
     private readonly ose: OseService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   catalogos() {
@@ -52,7 +52,7 @@ export class ComprobantesService {
   }
 
   async listaSucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO' AND s.tipo = 'LOCAL'`;
     if (!alcance.esSuperadmin) {
@@ -68,8 +68,8 @@ export class ComprobantesService {
 
   async listaSeries(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal', 'tipo']);
-    const alcance = await this.resolverAlcance(user);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     const params: any[] = [];
     let where = `WHERE cs.estado_registro = 'ACTIVO'`;
     if (idSucursal) {
@@ -94,7 +94,7 @@ export class ComprobantesService {
   }
 
   async crearSerie(dto: CrearSerieDto, user: RequestUser) {
-    await this.assertAccesoSucursal(dto.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     const serie = dto.serie.toUpperCase();
     try {
       const ins = await this.dataSource.query(
@@ -116,13 +116,13 @@ export class ComprobantesService {
 
   async findAll(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_sucursal', 'tipo', 'estado', 'id_cuenta', 'search']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE c.estado_registro = 'ACTIVO'`;
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND c.id_sucursal = ?`;
       params.push(idSucursal);
@@ -186,18 +186,18 @@ export class ComprobantesService {
       [id],
     );
     if (!cab) throw new NotFoundException('Comprobante no encontrado');
-    await this.assertAccesoSucursal(cab.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(cab.id_sucursal, user);
     const items = await this.dataSource.query(
       `SELECT * FROM comprobante_item WHERE id_comprobante = ? AND estado_registro = 'ACTIVO' ORDER BY id_comprobante_item`,
       [id],
     );
-    return { ...cab, items, emisor: this.emisorDesdeFila(cab), ose_modo: this.ose.modo() };
+    return { ...cab, items, emisor: this.emisorDesdeFila(cab), emisor_logo_path: cab.emisor_logo_path, ose_modo: this.ose.modo() };
   }
 
   async previewCuenta(idCuenta: number, user: RequestUser) {
     this.assertId(idCuenta);
     const cuenta = await this.obtenerCuenta(idCuenta);
-    await this.assertAccesoSucursal(cuenta.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(cuenta.id_sucursal, user);
     const items = await this.itemsPendientesDeFacturar(idCuenta, null);
     const tot = this.armarLineas(items);
     return {
@@ -217,7 +217,7 @@ export class ComprobantesService {
     let payloadOse: OsePayload | null = null;
     try {
       const cuenta = await this.obtenerCuentaTx(qr, dto.id_cuenta);
-      await this.assertAccesoSucursal(cuenta.id_sucursal, user);
+      await this.alcanceService.assertAccesoSucursal(cuenta.id_sucursal, user);
       if (cuenta.estado !== 'PAGADA' && cuenta.estado !== 'PARCIAL') {
         throw new ConflictException('Solo se emite sobre una cuenta cobrada (parcial o pagada)');
       }
@@ -229,6 +229,14 @@ export class ComprobantesService {
       this.assertTotal(dto.total_esperado, tot.total);
       this.validarCliente(dto.tipo, dto.tipo_doc_cliente, dto.num_doc_cliente, dto.razon_social_cliente, tot.total);
 
+      const [suc] = await qr.query(
+        `SELECT nombre, direccion, codigo_establecimiento_sunat, ruc, razon_social, nombre_comercial,
+                ubigeo, departamento, provincia, distrito, direccion_fiscal, nubefact_url, nubefact_token, logo_path
+         FROM sucursal WHERE id_sucursal = ?`,
+        [cuenta.id_sucursal],
+      );
+      const snap = this.snapshotEmisor(suc);
+
       const nro = Number(serie.correlativo_actual) + 1;
       await qr.query(
         `UPDATE comprobante_serie SET correlativo_actual = ?, id_usuario_mod = ? WHERE id_serie = ?`,
@@ -239,8 +247,9 @@ export class ComprobantesService {
         `INSERT INTO comprobante
          (id_sucursal, id_serie, id_cuenta, id_cobro, tipo, serie, correlativo,
           tipo_doc_cliente, num_doc_cliente, razon_social_cliente, direccion_cliente,
-          op_gravada, igv, total, estado, id_usuario_crea)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'REGISTRADO', ?)`,
+          op_gravada, igv, total, emisor_ruc, emisor_razon_social, emisor_nombre_comercial, emisor_logo_path,
+          estado, id_usuario_crea)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'REGISTRADO', ?)`,
         [
           cuenta.id_sucursal,
           serie.id_serie,
@@ -256,6 +265,10 @@ export class ComprobantesService {
           tot.opGravada,
           tot.igv,
           tot.total,
+          snap.emisor_ruc,
+          snap.emisor_razon_social,
+          snap.emisor_nombre_comercial,
+          snap.emisor_logo_path,
           user.idUsuario,
         ],
       );
@@ -282,12 +295,6 @@ export class ComprobantesService {
         );
       }
 
-      const [suc] = await qr.query(
-        `SELECT nombre, direccion, codigo_establecimiento_sunat, ruc, razon_social, nombre_comercial,
-                ubigeo, departamento, provincia, distrito, direccion_fiscal, nubefact_url, nubefact_token
-         FROM sucursal WHERE id_sucursal = ?`,
-        [cuenta.id_sucursal],
-      );
       payloadOse = {
         tipo: dto.tipo,
         serie: serie.serie,
@@ -368,8 +375,9 @@ export class ComprobantesService {
         `INSERT INTO comprobante
          (id_sucursal, id_serie, id_cuenta, id_comprobante_afectado, tipo, serie, correlativo,
           tipo_doc_cliente, num_doc_cliente, razon_social_cliente, direccion_cliente,
-          op_gravada, igv, total, estado, id_usuario_crea)
-         VALUES (?, ?, ?, ?, '07', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'REGISTRADO', ?)`,
+          op_gravada, igv, total, emisor_ruc, emisor_razon_social, emisor_nombre_comercial, emisor_logo_path,
+          estado, id_usuario_crea)
+         VALUES (?, ?, ?, ?, '07', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'REGISTRADO', ?)`,
         [
           orig.id_sucursal,
           serie.id_serie,
@@ -384,6 +392,10 @@ export class ComprobantesService {
           orig.op_gravada,
           orig.igv,
           orig.total,
+          orig.emisor_ruc || orig.emisor?.ruc || null,
+          orig.emisor_razon_social || orig.emisor?.razonSocial || null,
+          orig.emisor_nombre_comercial || orig.emisor?.nombreComercial || null,
+          orig.emisor_logo_path || null,
           user.idUsuario,
         ],
       );
@@ -559,8 +571,8 @@ export class ComprobantesService {
 
   async reenviarLote(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     const params: any[] = [];
     let where = `WHERE c.estado_registro = 'ACTIVO'
       AND c.estado IN ('RECHAZADO', 'REGISTRADO')
@@ -677,6 +689,18 @@ export class ComprobantesService {
   }
 
   private emisorDesdeFila(s: any) {
+    if (s?.emisor_ruc || s?.emisor_razon_social) {
+      return this.ose.emisor({
+        ruc: s.emisor_ruc,
+        razonSocial: s.emisor_razon_social,
+        nombreComercial: s.emisor_nombre_comercial,
+        ubigeo: s?.emisor_ubigeo || s?.ubigeo,
+        direccion: s?.emisor_dir || s?.direccion_fiscal || s?.direccion,
+        departamento: s?.emisor_depto || s?.departamento,
+        provincia: s?.emisor_prov || s?.provincia,
+        distrito: s?.emisor_dist || s?.distrito,
+      });
+    }
     return this.ose.emisor({
       ruc: s?.ruc || s?.emisor_ruc,
       razonSocial: s?.razon_social || s?.emisor_razon,
@@ -687,6 +711,16 @@ export class ComprobantesService {
       provincia: s?.provincia || s?.emisor_prov,
       distrito: s?.distrito || s?.emisor_dist,
     });
+  }
+
+  private snapshotEmisor(s: any) {
+    const emisor = this.emisorDesdeFila(s);
+    return {
+      emisor_ruc: emisor.ruc || null,
+      emisor_razon_social: emisor.razonSocial || null,
+      emisor_nombre_comercial: emisor.nombreComercial || null,
+      emisor_logo_path: s?.logo_path || null,
+    };
   }
 
   private oseExtras(s: any): Pick<OsePayload, 'emisor' | 'nubefact'> {
@@ -765,43 +799,6 @@ export class ComprobantesService {
     if (this.round2(esperado) !== this.round2(calculado)) {
       throw new BadRequestException('Alerta de seguridad: totales no coinciden');
     }
-  }
-
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

@@ -8,6 +8,7 @@ import { finalize } from 'rxjs/operators';
 
 import { PermissionsService } from 'src/app/core/services/seguridad/permissions.service';
 import { AlertService } from 'src/app/core/services/ui/alert.service';
+import { SessionContextService } from 'src/app/core/services/session-context.service';
 import { PedidosService } from '../comandero/pedidos.service';
 import { KdsSocketService } from './kds-socket.service';
 
@@ -26,6 +27,11 @@ export class KdsComponent implements OnInit, OnDestroy {
   private destroyRef = inject(DestroyRef);
   private kdsSocket = inject(KdsSocketService);
   public perms = inject(PermissionsService);
+  private sessionContext = inject(SessionContextService);
+
+  get esTablet(): boolean {
+    return this.sessionContext.esTabletOperativo();
+  }
 
   sucursales = signal<any[]>([]);
   items = signal<any[]>([]);
@@ -58,9 +64,11 @@ export class KdsComponent implements OnInit, OnDestroy {
       next: (res) => {
         const sucursales = this.unwrapArray(res);
         this.sucursales.set(sucursales);
-        if (sucursales.length === 1) {
+        const idCtx = this.sessionContext.idSucursal();
+        if (sucursales.length === 1 || (this.esTablet && idCtx)) {
           this.sucursalBloqueada.set(true);
-          this.filtros.patchValue({ id_sucursal: sucursales[0].id_sucursal });
+          const id = sucursales.length === 1 ? sucursales[0].id_sucursal : idCtx;
+          this.filtros.patchValue({ id_sucursal: id });
           this.filtros.get('id_sucursal')?.disable({ emitEvent: false });
         }
         this.cargar();

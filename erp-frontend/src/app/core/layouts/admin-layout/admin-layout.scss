@@ -38,5 +38,60 @@
 }
 
 .navbar-title {
-    letter-spacing: -0.5px;
+  font-size: 1.05rem;
+}
+
+/* ---------- Modo tablet (MOZO / COCINA / BAR) ---------- */
+.layout-tablet .layout-main-content {
+  background: #f4f5f7;
+}
+
+.layout-tablet .app-navbar-tablet {
+  padding-top: 0.65rem !important;
+  padding-bottom: 0.65rem !important;
+}
+
+.layout-tablet main {
+  padding-bottom: 5.5rem !important;
+}
+
+.tablet-bottom-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  background: #fff;
+  border-top: 1px solid var(--erp-border-soft, #e5e7eb);
+  padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.06);
+}
+
+.tablet-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 6px 4px;
+}
+
+.tablet-nav-item i {
+  font-size: 1.35rem;
+}
+
+.tablet-nav-item.active,
+.tablet-nav-item:hover {
+  color: var(--erp-primary, #0d6efd);
+  background: rgba(var(--erp-primary-rgb, 13, 110, 253), 0.08);
 }

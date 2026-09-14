@@ -9,6 +9,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource, QueryRunner } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { AlcanceService } from '../../common/auth/alcance.service';
+import { AlcanceSucursal } from '../../common/auth/alcance.interface';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import { CartaService } from '../carta/carta.service';
 import {
@@ -16,13 +18,14 @@ import {
   CambiarEstadoMesaDto,
   CreateMesaDto,
   ESTADOS_MESA,
+  GuardarSalonMapaDto,
   SepararMesasDto,
+  TIPOS_FORMA_MAPA,
+  TIPOS_LANDMARK,
   UnirMesasDto,
   UpdateMesaDto,
   ZONAS_MESA,
 } from './mesas.dto';
-
-type AlcanceSucursal = { esSuperadmin: boolean; idSucursal: number | null };
 
 @Injectable()
 export class MesasService {
@@ -30,17 +33,44 @@ export class MesasService {
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
     private readonly cartaService: CartaService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   catalogos() {
     return {
       estados: ESTADOS_MESA.map((e) => ({ codigo: e, etiqueta: this.etiquetaEstado(e) })),
       zonas: ZONAS_MESA.map((z) => ({ codigo: z, etiqueta: this.etiquetaZona(z) })),
+      formas_mapa: TIPOS_FORMA_MAPA.map((f) => ({
+        codigo: f,
+        etiqueta:
+          f === 'RECT'
+            ? 'Rectangular'
+            : f === 'L'
+              ? 'Forma en L'
+              : f === 'CIRCLE'
+                ? 'Circular'
+                : 'Personalizado',
+      })),
+      landmarks: TIPOS_LANDMARK.map((t) => ({
+        codigo: t,
+        etiqueta:
+          t === 'TV'
+            ? 'TV / Pantalla'
+            : t === 'BANO'
+              ? 'Baño'
+              : t === 'ESCALERA'
+                ? 'Escalera'
+                : t === 'COCINA'
+                  ? 'Cocina'
+                  : t === 'CAJA'
+                    ? 'Caja'
+                    : 'Entrada',
+      })),
     };
   }
 
   async listaSucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO' AND s.tipo = 'LOCAL'`;
     if (!alcance.esSuperadmin) {
@@ -55,7 +85,7 @@ export class MesasService {
 
   async mapa(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal', 'zona']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     const params: any[] = [idSucursal];
     let where = `WHERE m.id_sucursal = ? AND m.estado_registro = 'ACTIVO' AND m.mesa_padre_id IS NULL AND m.numero <> 'POS'`;
@@ -72,7 +102,15 @@ export class MesasService {
               (SELECT COALESCE(SUM(h.capacidad), 0) FROM mesa h WHERE h.mesa_padre_id = m.id_mesa AND h.estado_registro = 'ACTIVO') AS capacidad_unida,
               (SELECT COUNT(*) FROM llamado_mozo l WHERE l.id_mesa = m.id_mesa AND l.estado = 'PENDIENTE' AND l.estado_registro = 'ACTIVO') AS llamados_pendientes,
               (SELECT COUNT(*) FROM mesa_sesion ms WHERE ms.id_mesa = m.id_mesa AND ms.estado = 'ACTIVA' AND ms.estado_registro = 'ACTIVO') AS sesion_qr,
-              (SELECT COUNT(*) FROM pedido p WHERE p.id_mesa = m.id_mesa AND p.origen = 'QR' AND p.estado = 'PENDIENTE_CONFIRMACION' AND p.estado_registro = 'ACTIVO') AS prepedido_qr
+              (SELECT COUNT(*) FROM pedido p WHERE p.id_mesa = m.id_mesa AND p.origen = 'QR' AND p.estado = 'PENDIENTE_CONFIRMACION' AND p.estado_registro = 'ACTIVO') AS prepedido_qr,
+              (SELECT p.id_pedido FROM pedido p
+                WHERE p.id_mesa = m.id_mesa AND p.estado_registro = 'ACTIVO'
+                  AND p.estado NOT IN ('ANULADO', 'PAGADO')
+                ORDER BY p.id_pedido DESC LIMIT 1) AS id_pedido,
+              (SELECT p.estado FROM pedido p
+                WHERE p.id_mesa = m.id_mesa AND p.estado_registro = 'ACTIVO'
+                  AND p.estado NOT IN ('ANULADO', 'PAGADO')
+                ORDER BY p.id_pedido DESC LIMIT 1) AS estado_pedido
        FROM mesa m
        INNER JOIN sucursal s ON s.id_sucursal = m.id_sucursal
        ${where}
@@ -95,16 +133,21 @@ export class MesasService {
       return acc;
     }, {});
 
-    return mesas.map((m: any) => ({
-      ...m,
-      capacidad_total: Number(m.capacidad) + Number(m.capacidad_unida || 0),
-      mesas_unidas: hijasPorPadre[Number(m.id_mesa)] || [],
-    }));
+    const plano = await this.obtenerPlano(idSucursal, user.idUsuario);
+
+    return {
+      plano,
+      mesas: mesas.map((m: any) => ({
+        ...m,
+        capacidad_total: Number(m.capacidad) + Number(m.capacidad_unida || 0),
+        mesas_unidas: hijasPorPadre[Number(m.id_mesa)] || [],
+      })),
+    };
   }
 
   async lista(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     return this.dataSource.query(
       `SELECT m.id_mesa, m.numero, m.nombre, m.capacidad, m.zona, m.estado, m.mesa_padre_id,
@@ -119,14 +162,14 @@ export class MesasService {
 
   async findAll(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'search', 'id_sucursal', 'estado', 'zona']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE m.estado_registro = 'ACTIVO'`;
 
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND m.id_sucursal = ?`;
       params.push(idSucursal);
@@ -174,7 +217,7 @@ export class MesasService {
   async findOne(id: number, user: RequestUser) {
     this.assertId(id);
     const mesa = await this.obtenerMesaActiva(id);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const hijas = await this.dataSource.query(
       `SELECT id_mesa, numero, capacidad, estado FROM mesa
        WHERE mesa_padre_id = ? AND estado_registro = 'ACTIVO' ORDER BY numero ASC`,
@@ -184,7 +227,7 @@ export class MesasService {
   }
 
   async create(dto: CreateMesaDto, user: RequestUser) {
-    await this.assertAccesoSucursal(dto.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     await this.validateSucursalActiva(dto.id_sucursal);
     const payload = this.normalizeMesa(dto);
     await this.assertNumeroUnico(payload.id_sucursal, payload.numero);
@@ -213,7 +256,7 @@ export class MesasService {
   async update(id: number, dto: UpdateMesaDto, user: RequestUser) {
     this.assertId(id);
     const old = await this.obtenerMesaActiva(id);
-    await this.assertAccesoSucursal(old.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(old.id_sucursal, user);
     const payload = this.normalizeMesa({ ...old, ...dto });
     const idSucursal = dto.id_sucursal ?? old.id_sucursal;
     if (Number(idSucursal) !== Number(old.id_sucursal)) {
@@ -238,7 +281,7 @@ export class MesasService {
   async cambiarEstado(id: number, dto: CambiarEstadoMesaDto, user: RequestUser) {
     this.assertId(id);
     const mesa = await this.obtenerMesaActiva(id);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
     const raiz = mesa.mesa_padre_id ? Number(mesa.mesa_padre_id) : id;
 
     await this.dataSource.query(
@@ -255,7 +298,7 @@ export class MesasService {
   }
 
   async actualizarPosiciones(dto: ActualizarPosicionesDto, user: RequestUser) {
-    await this.assertAccesoSucursal(dto.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -283,9 +326,132 @@ export class MesasService {
     return this.mapa({ id_sucursal: dto.id_sucursal }, user);
   }
 
+  async obtenerPlano(idSucursal: number, userId?: number) {
+    let [row] = await this.dataSource.query(
+      `SELECT id_salon_mapa, id_sucursal, tipo_forma, puntos, landmarks
+       FROM salon_mapa
+       WHERE id_sucursal = ? AND estado_registro = 'ACTIVO'
+       LIMIT 1`,
+      [idSucursal],
+    );
+    if (!row) {
+      const puntos = this.plantillaPuntos('RECT');
+      const ins = await this.dataSource.query(
+        `INSERT INTO salon_mapa (id_sucursal, tipo_forma, puntos, landmarks, id_usuario_crea)
+         VALUES (?, 'RECT', ?, JSON_ARRAY(), ?)`,
+        [idSucursal, JSON.stringify(puntos), userId || 1],
+      );
+      [row] = await this.dataSource.query(
+        `SELECT id_salon_mapa, id_sucursal, tipo_forma, puntos, landmarks
+         FROM salon_mapa WHERE id_salon_mapa = ?`,
+        [Number(ins.insertId)],
+      );
+    }
+    return this.normalizarPlano(row);
+  }
+
+  async guardarPlano(dto: GuardarSalonMapaDto, user: RequestUser) {
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
+    const tipo = dto.tipo_forma;
+    let puntos = dto.puntos;
+    if (tipo === 'RECT' || tipo === 'L' || tipo === 'CIRCLE') {
+      puntos = this.plantillaPuntos(tipo);
+    } else {
+      if (!Array.isArray(puntos) || puntos.length < 3) {
+        throw new BadRequestException('La forma personalizada requiere al menos 3 puntos');
+      }
+      puntos = puntos.map((p) => {
+        if (!Array.isArray(p) || p.length < 2) throw new BadRequestException('Punto inválido');
+        return [this.clampPct(p[0]), this.clampPct(p[1])];
+      });
+    }
+
+    const landmarks = (dto.landmarks || []).map((lm) => {
+      if (!TIPOS_LANDMARK.includes(lm.tipo as any)) {
+        throw new BadRequestException(`Referencia inválida: ${lm.tipo}`);
+      }
+      return {
+        tipo: lm.tipo,
+        x: this.clampPct(lm.x),
+        y: this.clampPct(lm.y),
+        etiqueta: lm.etiqueta?.trim() || undefined,
+      };
+    });
+
+    const existing = await this.obtenerPlano(dto.id_sucursal, user.idUsuario);
+    await this.dataSource.query(
+      `UPDATE salon_mapa
+       SET tipo_forma = ?, puntos = ?, landmarks = ?, id_usuario_mod = ?
+       WHERE id_sucursal = ? AND estado_registro = 'ACTIVO'`,
+      [tipo, JSON.stringify(puntos), JSON.stringify(landmarks), user.idUsuario, dto.id_sucursal],
+    );
+    const updated = await this.obtenerPlano(dto.id_sucursal, user.idUsuario);
+    await this.auditoriaService.registrar(
+      'salon_mapa',
+      Number(existing.id_salon_mapa || dto.id_sucursal),
+      'ACTUALIZAR',
+      user.idUsuario,
+      existing,
+      updated,
+    );
+    return updated;
+  }
+
+  private plantillaPuntos(tipo: string): number[][] {
+    if (tipo === 'L') {
+      return [
+        [0, 0],
+        [50, 0],
+        [50, 50],
+        [100, 50],
+        [100, 100],
+        [0, 100],
+      ];
+    }
+    if (tipo === 'CIRCLE') {
+      return [
+        [50, 50],
+        [48, 48],
+      ];
+    }
+    return [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ];
+  }
+
+  private normalizarPlano(row: any) {
+    const parseJson = (v: any) => {
+      if (v == null) return [];
+      if (typeof v === 'string') {
+        try {
+          return JSON.parse(v);
+        } catch {
+          return [];
+        }
+      }
+      return v;
+    };
+    return {
+      id_salon_mapa: Number(row.id_salon_mapa),
+      id_sucursal: Number(row.id_sucursal),
+      tipo_forma: row.tipo_forma || 'RECT',
+      puntos: parseJson(row.puntos),
+      landmarks: parseJson(row.landmarks),
+    };
+  }
+
+  private clampPct(n: any) {
+    const v = Number(n);
+    if (Number.isNaN(v)) return 0;
+    return Math.min(100, Math.max(0, Math.round(v * 10) / 10));
+  }
+
   async unir(dto: UnirMesasDto, user: RequestUser) {
     const principal = await this.obtenerMesaActiva(dto.id_mesa_principal);
-    await this.assertAccesoSucursal(principal.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(principal.id_sucursal, user);
     if (principal.mesa_padre_id) throw new BadRequestException('La mesa principal no puede ser secundaria de otra');
 
     const secundarias: any[] = [];
@@ -340,7 +506,7 @@ export class MesasService {
 
   async separar(dto: SepararMesasDto, user: RequestUser) {
     const mesa = await this.obtenerMesaActiva(dto.id_mesa);
-    await this.assertAccesoSucursal(mesa.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(mesa.id_sucursal, user);
 
     let principalId = dto.id_mesa;
     let hijas: any[] = [];
@@ -388,11 +554,11 @@ export class MesasService {
 
   async historialUniones(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 50);
     const offset = (page - 1) * limit;
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     const params: any[] = [];
     let where = `WHERE u.estado_registro = 'ACTIVO'`;
     if (idSucursal) {
@@ -430,7 +596,7 @@ export class MesasService {
   async remove(id: number, user: RequestUser) {
     this.assertId(id);
     const old = await this.obtenerMesaActiva(id);
-    await this.assertAccesoSucursal(old.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(old.id_sucursal, user);
 
     const [hijas] = await this.dataSource.query(
       `SELECT COUNT(*) AS total FROM mesa WHERE mesa_padre_id = ? AND estado_registro = 'ACTIVO'`,
@@ -514,51 +680,10 @@ export class MesasService {
     return map[zona] || zona;
   }
 
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    this.assertSucursalPermitida(idSucursal, alcance);
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const esSuperadmin = String(rol?.nombre || '') === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null };
-
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal };
-  }
-
   private exigirSucursal(raw: any, alcance: AlcanceSucursal): number {
-    const id = this.forzarSucursal(raw, alcance);
+    const id = this.alcanceService.forzarSucursal(raw, alcance);
     if (!id) throw new BadRequestException('Debe indicar la sucursal');
     return id;
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
-  }
-
-  private assertSucursalPermitida(idSucursal: number, alcance: AlcanceSucursal) {
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

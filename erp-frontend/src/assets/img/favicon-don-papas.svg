@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#9d1c27"/>
+  <circle cx="32" cy="32" r="26" fill="#f5f0dc" stroke="#d7a52b" stroke-width="3"/>
+  <rect x="22" y="18" width="4" height="18" rx="2" fill="#d7a52b" transform="rotate(-12 24 27)"/>
+  <rect x="28" y="16" width="4" height="20" rx="2" fill="#d7a52b" transform="rotate(-4 30 26)"/>
+  <rect x="34" y="16" width="4" height="20" rx="2" fill="#d7a52b" transform="rotate(4 36 26)"/>
+  <rect x="40" y="18" width="4" height="18" rx="2" fill="#d7a52b" transform="rotate(12 42 27)"/>
+  <text x="32" y="48" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="8" font-weight="700" fill="#9d1c27">DP</text>
+</svg>

@@ -8,12 +8,13 @@ import { useCrud } from 'src/app/core/utils/crud.util';
 import { PermissionsService } from 'src/app/core/services/seguridad/permissions.service';
 import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro.component';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
+import { NumberFieldComponent } from 'src/app/shared/components/number-field/number-field.component';
 import { InsumosService } from './insumos.service';
 
 @Component({
   selector: 'app-insumos',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent],
+  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent, NumberFieldComponent],
   templateUrl: './insumos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -28,7 +29,8 @@ export class InsumosComponent implements OnInit {
   form: FormGroup = this.fb.group({
     nombre: ['', [Validators.required, Validators.maxLength(120)]],
     id_unidad_medida: [null, Validators.required],
-    costo_unitario: [0, [Validators.required, Validators.min(0)]],
+    precio_costo: [0, [Validators.required, Validators.min(0)]],
+    precio_venta: [0, [Validators.min(0)]],
   });
 
   ngOnInit() {
@@ -47,7 +49,8 @@ export class InsumosComponent implements OnInit {
     this.form.reset({
       nombre: item?.nombre || '',
       id_unidad_medida: item?.id_unidad_medida || null,
-      costo_unitario: item?.costo_unitario ?? 0,
+      precio_costo: item?.costo_unitario ?? 0,
+      precio_venta: item?.precio_venta ?? 0,
     });
     this.crud.openModal(modalTemplate, { centered: true, backdrop: 'static', size: 'lg' });
   }
@@ -61,7 +64,8 @@ export class InsumosComponent implements OnInit {
     this.crud.save({
       nombre: raw.nombre,
       id_unidad_medida: Number(raw.id_unidad_medida),
-      costo_unitario: Number(raw.costo_unitario),
+      costo_unitario: Number(raw.precio_costo),
+      precio_venta: Number(raw.precio_venta ?? 0),
     });
   }
 

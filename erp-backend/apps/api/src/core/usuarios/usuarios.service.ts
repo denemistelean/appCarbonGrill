@@ -34,7 +34,7 @@ export class UsuariosService {
       await this.auditoriaService.registrar('sis_usuario', idUsuarioNuevo, 'CREAR', userId, null, { correo: dto.correo, rol: dto.id_rol });
       return { success: true, message: 'Usuario base registrado exitosamente', id: idUsuarioNuevo };
     } catch (error: any) {
-      if (error.message.includes('correo')) throw new ConflictException('El correo ya está en uso');
+      if (error.message.includes('correo')) throw new ConflictException('El usuario ya está en uso');
       throw new InternalServerErrorException('Error al crear usuario en el Core');
     }
   }

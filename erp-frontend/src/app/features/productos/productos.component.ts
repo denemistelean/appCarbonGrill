@@ -12,12 +12,13 @@ import { FormErrorComponent } from 'src/app/shared/components/form-error/form-er
 import { CategoriasService } from '../maestros/maestros.service';
 import { InsumosService } from '../insumos/insumos.service';
 import { SucursalesService } from '../sucursales/sucursales.service';
+import { NumberFieldComponent } from 'src/app/shared/components/number-field/number-field.component';
 import { ProductosService } from './productos.service';
 
 @Component({
   selector: 'app-productos',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent],
+  imports: [CommonModule, DecimalPipe, ReactiveFormsModule, NgbModalModule, NgSelectModule, TableProComponent, FormErrorComponent, NumberFieldComponent],
   templateUrl: './productos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -77,7 +78,10 @@ export class ProductosComponent implements OnInit {
 
   ngOnInit() {
     this.categoriasService.lista().subscribe({ next: (res) => this.categorias.set(this.unwrap(res)) });
-    this.insumosService.lista().subscribe({ next: (res) => this.insumos.set(this.unwrap(res)) });
+    this.insumosService.lista().subscribe({
+      next: (res) => this.insumos.set(this.unwrap(res)),
+      error: () => this.alert.error('No se pudo cargar la lista de insumos para la receta.'),
+    });
     this.service.lista(0).subscribe({ next: (res) => this.platos.set(this.unwrap(res)) });
     this.sucursalesService.lista().subscribe({ next: (res) => this.sucursalesCatalogo.set(this.unwrap(res)) });
     this.form.get('es_combo')?.valueChanges.subscribe((v) => this.esComboView.set(String(v) === '1'));

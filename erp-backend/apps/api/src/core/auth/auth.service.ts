@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ROLES_OPERATIVOS } from '../../common/auth/alcance.interface';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -81,7 +82,74 @@ export class AuthService {
     } catch (_) {}
 
     const sucursal = await this.cargarSucursalAsignada(user.id_usuario);
+    this.validarAsignacionOperativa(String(user.rol || ''), sucursal.id_sucursal);
     return this.buildAuthResponse({ ...user, ...sucursal }, esPrimeraSesion);
+  }
+
+  async contexto(userId: number) {
+    const user = await this.usuariosService.findOne(userId);
+    if (!user?.data || user.data.estado_registro !== 'ACTIVO') {
+      throw new UnauthorizedException('Usuario inactivo');
+    }
+    const [rolRow] = await this.dataSource.query(
+      `SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`,
+      [user.data.id_rol],
+    );
+    const nombreRol = String(rolRow?.nombre || user.data.nombre_rol || user.data.rol || '');
+    const esSuperadmin = nombreRol === 'SUPERADMIN';
+    const asignacion = await this.cargarSucursalAsignada(userId);
+
+    if (!esSuperadmin && ROLES_OPERATIVOS.includes(nombreRol as (typeof ROLES_OPERATIVOS)[number]) && !asignacion.id_sucursal) {
+      throw new UnauthorizedException('Usuario sin local asignado');
+    }
+
+    let sucursalDetalle: Record<string, unknown> | null = null;
+    if (asignacion.id_sucursal) {
+      const [s] = await this.dataSource.query(
+        `SELECT id_sucursal, codigo, nombre, nombre_comercial, logo_path, ruc, razon_social,
+                direccion, direccion_fiscal, telefono, tipo
+         FROM sucursal
+         WHERE id_sucursal = ? AND estado_registro = 'ACTIVO'`,
+        [asignacion.id_sucursal],
+      );
+      if (s) {
+        sucursalDetalle = {
+          id_sucursal: Number(s.id_sucursal),
+          codigo: s.codigo,
+          nombre: s.nombre,
+          nombre_comercial: s.nombre_comercial || s.nombre,
+          logo_path: s.logo_path || null,
+          logo_url: s.logo_path ? `/uploads/${String(s.logo_path).replace(/^\/+/, '')}` : null,
+          ruc: s.ruc || null,
+          razon_social: s.razon_social || null,
+          direccion: s.direccion_fiscal || s.direccion || null,
+          telefono: s.telefono || null,
+          tipo: s.tipo || 'LOCAL',
+        };
+      }
+    }
+
+    const nombreMostrar =
+      (sucursalDetalle?.nombre_comercial as string) ||
+      (sucursalDetalle?.nombre as string) ||
+      'Portal de gestión';
+
+    return {
+      es_superadmin: esSuperadmin,
+      id_sucursal: asignacion.id_sucursal,
+      sucursal_nombre: asignacion.sucursal,
+      nombre_marca: nombreMostrar,
+      logo_url: (sucursalDetalle?.logo_url as string) || null,
+      sucursal: sucursalDetalle,
+      usuario: {
+        id_usuario: user.data.id_usuario,
+        nombres: user.data.nombres,
+        apellidos: user.data.apellidos,
+        correo: user.data.correo,
+        id_rol: user.data.id_rol,
+        nombre_rol: nombreRol,
+      },
+    };
   }
 
   async refresh(dto: RefreshTokenDto) {
@@ -95,6 +163,8 @@ export class AuthService {
         throw new UnauthorizedException('Usuario inactivo');
       }
       const sucursal = await this.cargarSucursalAsignada(user.data.id_usuario);
+      const nombreRol = String(user.data.nombre_rol || user.data.rol || '');
+      this.validarAsignacionOperativa(nombreRol, sucursal.id_sucursal);
       const normalized = {
         id_usuario: user.data.id_usuario,
         correo: user.data.correo,
@@ -118,6 +188,14 @@ export class AuthService {
 
   async cambiarClave(userId: number, claveActual: string, claveNueva: string) {
     return this.usuariosService.cambiarClave(userId, claveActual, claveNueva);
+  }
+
+  /** Roles operativos deben tener sucursal_asignacion vigente. */
+  private validarAsignacionOperativa(nombreRol: string, idSucursal: number | null) {
+    if (nombreRol === 'SUPERADMIN') return;
+    if (ROLES_OPERATIVOS.includes(nombreRol as (typeof ROLES_OPERATIVOS)[number]) && !idSucursal) {
+      throw new UnauthorizedException('Usuario sin local asignado. Contacte al administrador.');
+    }
   }
 
   /** Lectura extra sobre sucursal_asignacion. No modifica SPs de sis_usuario. */

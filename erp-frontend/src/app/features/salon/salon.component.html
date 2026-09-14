@@ -1,7 +1,11 @@
-<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);">
-    <app-erp-tabs [tabs]="tabs" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+<div class="container-fluid p-3 p-md-4 form-wrapper mx-auto" style="max-width: var(--erp-max-width);"
+     [class.salon-tablet]="esTabletMozo">
+    @if (!esTabletMozo) {
+        <app-erp-tabs [tabs]="tabsVisibles" [activeTab]="tab()" (tabChange)="onTab($event)"></app-erp-tabs>
+    }
 
     @if (tab() === 'mapa') {
+        @if (!esTabletMozo) {
         <div class="card-pro mb-3 p-3">
             <form [formGroup]="filtrosMapa" class="row g-3 align-items-end">
                 <div class="col-md-5">
@@ -23,9 +27,17 @@
                         <button type="button" class="btn btn-primary flex-grow-1" (click)="onSucursalMapa()">VER MAPA</button>
                         @if (perms.hasPermission('actualizar_mesa') && idSucursal()) {
                             <button type="button" class="btn flex-shrink-0"
+                                    [class.btn-info]="editandoPlano()"
+                                    [class.btn-soft-neutral]="!editandoPlano()"
+                                    (click)="toggleEditarPlano()"
+                                    title="Personalizar forma del local">
+                                <i class="bi bi-bounding-box"></i>
+                            </button>
+                            <button type="button" class="btn flex-shrink-0"
                                     [class.btn-warning]="organizar()"
                                     [class.btn-soft-neutral]="!organizar()"
                                     (click)="toggleOrganizar()"
+                                    [disabled]="editandoPlano()"
                                     [title]="organizar() ? 'Terminar de mover mesas' : 'Mover mesas en el mapa'">
                                 <i class="bi" [class.bi-arrows-move]="!organizar()" [class.bi-check-lg]="organizar()"></i>
                             </button>
@@ -41,6 +53,13 @@
                 }
             </div>
         </div>
+        } @else {
+            <div class="d-flex flex-wrap gap-2 mb-2 px-1">
+                @for (e of estados(); track e.codigo) {
+                    <span class="badge-erp mesa-{{ e.codigo.toLowerCase() }} text-xs-erp">{{ e.etiqueta }}</span>
+                }
+            </div>
+        }
 
         <div class="card-pro p-3 mb-3 position-relative">
             @if (mapaLoading()) {
@@ -53,16 +72,98 @@
                     Arrastra cada mesa a su lugar. Al soltar se guarda la posición. Pulsa el check para salir.
                 </div>
             }
+            @else if (editandoPlano()) {
+                <div class="card-pro border p-3 mb-3 plano-editor">
+                    <div class="fw-bold text-erp mb-2"><i class="bi bi-bounding-box me-1"></i> Forma del local</div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @for (f of formasMapa(); track f.codigo) {
+                            <button type="button" class="btn btn-sm"
+                                    [class.btn-primary]="plano().tipo_forma === f.codigo && !dibujando()"
+                                    [class.btn-soft-neutral]="plano().tipo_forma !== f.codigo || dibujando()"
+                                    (click)="aplicarForma(f.codigo)">
+                                @switch (f.codigo) {
+                                    @case ('RECT') { ▭ }
+                                    @case ('L') { ⌐ }
+                                    @case ('CIRCLE') { ○ }
+                                    @default { ✎ }
+                                }
+                                {{ f.etiqueta }}
+                            </button>
+                        }
+                    </div>
+                    @if (dibujando()) {
+                        <div class="alert alert-info py-2 px-3 text-xs-erp mb-3">
+                            Haz clic en cualquier celda del plano (esquinas incluidas) para marcar cada vértice. Cierra la forma clicando cerca del primer punto.
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-soft-neutral" (click)="deshacerPunto()">Deshacer punto</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" (click)="cancelarDibujo()">Cancelar</button>
+                            </div>
+                        </div>
+                    }
+                    <div class="fw-bold text-erp mb-2"><i class="bi bi-geo-alt me-1"></i> Referencias (opcional)</div>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        @for (t of tiposLandmark(); track t.codigo) {
+                            <button type="button" class="btn btn-sm"
+                                    [class.btn-primary]="landmarkPendiente() === t.codigo"
+                                    [class.btn-soft-neutral]="landmarkPendiente() !== t.codigo"
+                                    (click)="elegirLandmark(t.codigo)">
+                                <i class="bi {{ iconoLandmark(t.codigo) }} me-1"></i>{{ t.etiqueta }}
+                            </button>
+                        }
+                    </div>
+                    @if (landmarkPendiente()) {
+                        <p class="text-xs-erp text-muted-erp mb-0">Clic en el mapa para colocar: <strong>{{ etiquetaLandmark(landmarkPendiente()!) }}</strong></p>
+                    }
+                    <button type="button" class="btn btn-sm btn-soft-neutral mt-3" (click)="toggleEditarPlano()">
+                        <i class="bi bi-check-lg me-1"></i> Terminar edición del plano
+                    </button>
+                </div>
+            }
             @else {
                 <p class="text-muted-erp text-xs-erp mb-3">
                     Toque una mesa para cambiar estado, unirla o mostrar el QR.
                     @if (perms.hasPermission('actualizar_mesa')) {
-                        Usa el botón de flechas para moverlas a libre disposición.
+                        Usa el botón de cuadro para personalizar la forma del local, o el de flechas para mover mesas.
                     }
                 </p>
             }
-                <div class="mesa-mapa" [class.organizando]="organizar()">
-                    <div class="mesa-mapa-canvas" #mapaCanvas>
+                <div class="mesa-mapa"
+                     [class.organizando]="organizar()"
+                     [class.editando-plano]="editandoPlano()"
+                     [class.dibujando]="dibujando() || !!landmarkPendiente()">
+                    <div class="mesa-mapa-canvas" #mapaCanvas (click)="onCanvasClick($event)">
+                    <svg class="room-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        @if (plano().tipo_forma === 'CIRCLE' && !dibujando()) {
+                            <ellipse class="room-fill"
+                                     [attr.cx]="circleAttrs().cx"
+                                     [attr.cy]="circleAttrs().cy"
+                                     [attr.rx]="circleAttrs().rx"
+                                     [attr.ry]="circleAttrs().ry"></ellipse>
+                        } @else if (roomPathD()) {
+                            <path class="room-fill" [attr.d]="roomPathD()"></path>
+                        }
+                        @if (dibujando()) {
+                            @for (pt of draftPoints(); track $index) {
+                                <circle class="vertex" [attr.cx]="pt[0]" [attr.cy]="pt[1]"
+                                        [attr.r]="$index === 0 ? 1.4 : 1"></circle>
+                            }
+                        }
+                    </svg>
+                    @for (lm of plano().landmarks; track $index) {
+                        <div class="mapa-landmark"
+                             [style.left.%]="lm.x" [style.top.%]="lm.y"
+                             [class.editable]="editandoPlano()"
+                             (pointerdown)="onLandmarkPointerDown($event, $index)"
+                             [title]="etiquetaLandmark(lm.tipo)">
+                            <i class="bi {{ iconoLandmark(lm.tipo) }}"></i>
+                            <span>{{ etiquetaLandmark(lm.tipo) }}</span>
+                            @if (editandoPlano()) {
+                                <button type="button" class="landmark-del" (click)="quitarLandmark($index); $event.stopPropagation()" title="Quitar">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            }
+                        </div>
+                    }
                     @for (mesa of mapa(); track mesa.id_mesa) {
                         <button type="button" class="mesa-card text-start" [ngClass]="claseEstado(mesa.estado)"
                                 [class.dragging]="arrastrandoId() === mesa.id_mesa"
@@ -83,7 +184,7 @@
                             }
                         </button>
                     } @empty {
-                        <div class="text-center py-5 text-muted-erp w-100">No hay mesas en esta sucursal.</div>
+                        <div class="text-center py-5 text-muted-erp w-100 position-relative" style="z-index:2">No hay mesas en esta sucursal.</div>
                     }
                     </div>
                 </div>
@@ -219,8 +320,14 @@
             <div class="mb-3">
                 <div class="text-muted-erp text-xs-erp">Capacidad total</div>
                 <div class="fw-bold text-erp">{{ m.capacidad }} @if (m.mesas_unidas?.length) { + {{ mesasUnidasLabel() }} }</div>
+                <div class="mt-2">
+                    <span class="badge-erp mesa-{{ m.estado?.toLowerCase() }}">{{ etiquetaEstado(m.estado) }}</span>
+                    @if (m.estado_pedido) {
+                        <span class="badge-erp badge-secondary ms-1">Pedido: {{ m.estado_pedido }}</span>
+                    }
+                </div>
             </div>
-            @if (perms.hasPermission('actualizar_mesa') && m.estado !== 'LIMPIEZA') {
+            @if (!esTabletMozo && perms.hasPermission('actualizar_mesa') && m.estado !== 'LIMPIEZA') {
                 <form [formGroup]="mesaModalForm" class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Estado</label>
@@ -246,8 +353,8 @@
         }
     </div>
     <div class="modal-footer bg-erp border-top-dashed-erp d-flex justify-content-between gap-2 flex-wrap">
-        <div>
-            @if (mesaSeleccionada()?.mesas_unidas?.length || mesaSeleccionada()?.mesa_padre_id) {
+        <div class="d-flex flex-wrap gap-2">
+            @if (!esTabletMozo && (mesaSeleccionada()?.mesas_unidas?.length || mesaSeleccionada()?.mesa_padre_id)) {
                 @if (perms.hasPermission('actualizar_mesa')) {
                     <button type="button" class="btn btn-soft-neutral" (click)="separarMesa(modal)">
                         <i class="bi bi-link-break me-1"></i> SEPARAR
@@ -260,11 +367,16 @@
                 </button>
             }
             @if (perms.hasPermission('ver_pedido') && mesaSeleccionada()?.id_mesa) {
-                <a class="btn btn-soft-neutral" [routerLink]="['/comandero']" [queryParams]="{ mesa: mesaSeleccionada().id_mesa }" (click)="modal.dismiss()">
+                <a class="btn btn-primary" [routerLink]="['/comandero']" [queryParams]="{ mesa: mesaSeleccionada().id_mesa }" (click)="modal.dismiss()">
                     <i class="bi bi-journal-check me-1"></i> TOMAR PEDIDO
                 </a>
             }
-            @if (perms.hasPermission('ver_qr_mesa') && mesaSeleccionada()?.id_mesa) {
+            @if (puedeCobrarDesdeSalon(mesaSeleccionada())) {
+                <button type="button" class="btn btn-primary" (click)="irACobrar(modal)">
+                    <i class="bi bi-cash-stack me-1"></i> COBRAR
+                </button>
+            }
+            @if (puedeVerQrCarta(mesaSeleccionada())) {
                 <button type="button" class="btn btn-soft-neutral" (click)="mostrarQr(modalQr)">
                     <i class="bi bi-qr-code me-1"></i> QR CARTA
                 </button>
@@ -272,7 +384,7 @@
         </div>
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-soft-neutral" (click)="modal.dismiss()">CERRAR</button>
-            @if (perms.hasPermission('actualizar_mesa')) {
+            @if (!esTabletMozo && perms.hasPermission('actualizar_mesa')) {
                 <button type="button" class="btn btn-primary" (click)="guardarEstadoMesa(modal)">GUARDAR</button>
             }
         </div>

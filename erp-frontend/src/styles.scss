@@ -642,6 +642,67 @@ body.dark-mode .card-pro:hover {
     outline: none !important;
 }
 
+/* Stepper cantidad (receta productos): input compacto + botones separados */
+app-number-field {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+}
+
+app-number-field .nf-stepper {
+    display: flex !important;
+    align-items: center;
+    gap: 0.75rem !important;
+    width: max-content !important;
+}
+
+app-number-field .nf-stepper-btn {
+    flex: 0 0 2rem !important;
+    width: 2rem !important;
+    min-width: 2rem !important;
+    padding: 0 !important;
+    line-height: 1;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+app-number-field .nf-stepper-input.form-control {
+    flex: 0 0 3.25rem !important;
+    width: 3.25rem !important;
+    min-width: 3.25rem !important;
+    max-width: 3.25rem !important;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+}
+
+app-number-field .nf-stepper-sm .nf-stepper-btn {
+    flex: 0 0 1.85rem !important;
+    width: 1.85rem !important;
+    min-width: 1.85rem !important;
+    font-size: 1rem;
+}
+
+app-number-field .nf-stepper-sm .nf-stepper-input.form-control {
+    flex: 0 0 2.75rem !important;
+    width: 2.75rem !important;
+    min-width: 2.75rem !important;
+    max-width: 2.75rem !important;
+}
+
+app-number-field input.no-spinner::-webkit-outer-spin-button,
+app-number-field input.no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+app-number-field input.no-spinner {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 .ng-select.ng-select-focused .ng-select-container {
     border-color: var(--erp-primary) !important;
     box-shadow: 0 0 0 0.2rem rgba(var(--erp-primary-rgb), 0.18) !important;

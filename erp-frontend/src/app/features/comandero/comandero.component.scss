@@ -19,3 +19,19 @@
 @media (min-width: 992px) {
   .sticky-lg-top { top: 1rem; }
 }
+
+.comandero-tablet {
+  max-width: none !important;
+  padding: 0.5rem !important;
+}
+
+.comandero-tablet .carta-card {
+  min-height: 110px;
+  padding: 1rem;
+  font-size: 1rem;
+  touch-action: manipulation;
+}
+
+.comandero-tablet .btn {
+  min-height: 44px;
+}

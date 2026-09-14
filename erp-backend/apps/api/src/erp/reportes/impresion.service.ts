@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource } from 'typeorm';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import { EncolarImpresionDto } from './reportes.dto';
 import { asciiTicket, construirEscPos80 } from './escpos.util';
@@ -13,17 +14,18 @@ export class ImpresionService {
   constructor(
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   async listar(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_sucursal', 'estado']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
     const params: any[] = [];
     let where = `WHERE q.estado_registro = 'ACTIVO'`;
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     if (idSucursal) {
       where += ` AND q.id_sucursal = ?`;
       params.push(idSucursal);
@@ -132,7 +134,7 @@ export class ImpresionService {
       [id],
     );
     if (!row) throw new NotFoundException('Ticket no encontrado');
-    await this.assertAccesoSucursal(Number(row.id_sucursal), user);
+    await this.alcanceService.assertAccesoSucursal(Number(row.id_sucursal), user);
     return row;
   }
 
@@ -145,7 +147,7 @@ export class ImpresionService {
       [id],
     );
     if (!row) throw new NotFoundException('Ticket no encontrado');
-    await this.assertAccesoSucursal(Number(row.id_sucursal), user);
+    await this.alcanceService.assertAccesoSucursal(Number(row.id_sucursal), user);
     return { titulo: row.titulo, buffer: Buffer.from(row.payload_escpos) };
   }
 
@@ -167,7 +169,7 @@ export class ImpresionService {
       [idPedido],
     );
     if (!p) throw new NotFoundException('Pedido no encontrado');
-    await this.assertAccesoSucursal(Number(p.id_sucursal), user);
+    await this.alcanceService.assertAccesoSucursal(Number(p.id_sucursal), user);
     const items = await this.dataSource.query(
       `SELECT i.cantidad, pr.nombre AS producto, ROUND(i.cantidad * i.precio_unitario, 2) AS monto
        FROM pedido_item i
@@ -184,8 +186,7 @@ export class ImpresionService {
     const total = Number(cta?.total ?? p.total ?? 0);
     const pagado = Number(cta?.pagado || 0);
     const lineas = [
-      this.centro(p.sucursal),
-      this.centro('PRE-CUENTA'),
+      this.centro('****PRE CUENTA****'),
       this.sep(),
       `Mesa ${p.mesa}  Pedido #${p.id_pedido}`,
       this.sep(),
@@ -197,7 +198,6 @@ export class ImpresionService {
       lineas.push(this.fila('Pagado', `S/ ${this.money(pagado)}`));
       lineas.push(this.fila('SALDO', `S/ ${this.money(total - pagado)}`));
     }
-    lineas.push(this.sep(), this.centro('No es comprobante SUNAT'));
     return { idSucursal: Number(p.id_sucursal), titulo: `Precuenta mesa ${p.mesa} #${p.id_pedido}`, lineas };
   }
 
@@ -211,7 +211,7 @@ export class ImpresionService {
       [idComp],
     );
     if (!c) throw new NotFoundException('Comprobante no encontrado');
-    await this.assertAccesoSucursal(Number(c.id_sucursal), user);
+    await this.alcanceService.assertAccesoSucursal(Number(c.id_sucursal), user);
     const items = await this.dataSource.query(
       `SELECT * FROM comprobante_item WHERE id_comprobante = ? AND estado_registro = 'ACTIVO' ORDER BY id_comprobante_item`,
       [idComp],
@@ -252,7 +252,7 @@ export class ImpresionService {
       [idCobro],
     );
     if (!c) throw new NotFoundException('Cobro no encontrado');
-    await this.assertAccesoSucursal(Number(c.id_sucursal), user);
+    await this.alcanceService.assertAccesoSucursal(Number(c.id_sucursal), user);
     const medios = await this.dataSource.query(
       `SELECT medio, monto, recibido, vuelto FROM cobro_medio
        WHERE id_cobro = ? AND estado_registro = 'ACTIVO'`,
@@ -291,43 +291,6 @@ export class ImpresionService {
 
   private money(n: any) {
     return (Math.round(Number(n || 0) * 100) / 100).toFixed(2);
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

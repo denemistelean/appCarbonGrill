@@ -9,7 +9,7 @@
                 <tr>
                     <th class="ps-3 fw-bold border-0" style="width: 80px;">ID</th>
                     <th class="fw-bold border-0">NOMBRES Y APELLIDOS</th>
-                    <th class="fw-bold border-0">CORREO</th>
+                    <th class="fw-bold border-0">USUARIO</th>
                     <th class="fw-bold border-0 text-center">ROL</th>
                     <th class="fw-bold border-0 text-center">ESTADO</th>
                     <th class="text-center border-0" style="width: 120px;">ACCIONES</th>
@@ -82,8 +82,8 @@
             </div>
 
             <div class="col-md-6">
-                <label class="form-label">Correo Electrónico <span class="req-star">*</span></label>
-                <input type="email" class="form-control" formControlName="correo">
+                <label class="form-label">Usuario <span class="req-star">*</span></label>
+                <input type="text" class="form-control" formControlName="correo" placeholder="Ej: caja1" autocomplete="username">
                 <app-form-error [control]="form.get('correo')"></app-form-error>
             </div>
 

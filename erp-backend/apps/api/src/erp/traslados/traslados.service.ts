@@ -8,11 +8,10 @@ import {
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource } from 'typeorm';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { RequestUser } from '../../common/auth/request-user.interface';
 import { InventarioService } from '../inventario/inventario.service';
 import { CreateTrasladoDto, RecibirTrasladoDto, RechazarTrasladoDto } from './traslados.dto';
-
-type AlcanceSucursal = { esSuperadmin: boolean; idSucursal: number | null };
 
 @Injectable()
 export class TrasladosService {
@@ -20,10 +19,11 @@ export class TrasladosService {
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly inventarioService: InventarioService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   async catalogos(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO'`;
     if (!alcance.esSuperadmin) {
@@ -77,7 +77,7 @@ export class TrasladosService {
 
   async findAll(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'estado', 'tipo', 'id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 50);
     const offset = (page - 1) * limit;
@@ -237,7 +237,7 @@ export class TrasladosService {
   async despachar(id: number, user: RequestUser) {
     const cab = await this.loadCabecera(id);
     if (cab.estado !== 'APROBADO') throw new ConflictException('Solo se despachan traslados aprobados');
-    await this.assertAccesoSucursal(cab.id_origen, user);
+    await this.alcanceService.assertAccesoSucursal(cab.id_origen, user);
     await this.assertStockSuficienteTraslado(id, cab.id_origen);
 
     const items = await this.loadItems(id, cab.id_origen);
@@ -289,7 +289,7 @@ export class TrasladosService {
   async recibir(id: number, dto: RecibirTrasladoDto, user: RequestUser) {
     const cab = await this.loadCabecera(id);
     if (cab.estado !== 'EN_TRANSITO') throw new ConflictException('Solo se reciben traslados en tránsito');
-    await this.assertAccesoSucursal(cab.id_destino, user);
+    await this.alcanceService.assertAccesoSucursal(cab.id_destino, user);
 
     const items = await this.loadItems(id, cab.id_origen);
     const byId = new Map(items.map((i: any) => [Number(i.id_traslado_item), i]));
@@ -607,7 +607,7 @@ export class TrasladosService {
   }
 
   private async assertAccesoTraslado(cab: any, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     if (alcance.esSuperadmin) return;
     const id = alcance.idSucursal;
     if (Number(cab.id_origen) !== id && Number(cab.id_destino) !== id) {
@@ -616,45 +616,12 @@ export class TrasladosService {
   }
 
   private async assertParticipante(idOrigen: number, idDestino: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     if (alcance.esSuperadmin) return;
     const id = alcance.idSucursal;
     if (Number(idOrigen) !== id && Number(idDestino) !== id) {
       throw new ForbiddenException('Debe pertenecer al origen o destino del traslado');
     }
-  }
-
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    if (alcance.esSuperadmin) return;
-    if (Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar en otra sucursal');
-    }
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(
-      `SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`,
-      [user.idRol],
-    );
-    const esSuperadmin = String(rol?.nombre || '') === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null };
-
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal
-       FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ?
-         AND a.estado_registro = 'ACTIVO'
-         AND a.vigente_hasta IS NULL
-         AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC
-       LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal };
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

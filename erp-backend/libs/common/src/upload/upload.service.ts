@@ -55,6 +55,37 @@ export class UploadService {
     return `${subdir}/${filename}`.replace(/\\/g, '/');
   }
 
+  /** Logo fijo por sucursal: uploads/sucursales/{id}/logo.{ext} */
+  saveSucursalLogo(idSucursal: number, file: Express.Multer.File): string {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('No se recibió el archivo');
+    }
+    const ext = extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_EXT.has(ext)) {
+      throw new BadRequestException('Formato no permitido. Use JPG, PNG o WEBP');
+    }
+    if (file.size > MAX_BYTES) {
+      throw new BadRequestException('El archivo no debe superar 5 MB');
+    }
+
+    const subdir = `sucursales/${idSucursal}`;
+    const dir = join(this.uploadsRoot, subdir);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    for (const oldExt of ALLOWED_EXT) {
+      const oldPath = join(dir, `logo${oldExt}`);
+      if (existsSync(oldPath)) {
+        unlinkSync(oldPath);
+      }
+    }
+
+    const filename = `logo${ext}`;
+    writeFileSync(join(dir, filename), file.buffer);
+    return `${subdir}/${filename}`.replace(/\\/g, '/');
+  }
+
   deleteIfExists(relativePath: string | null | undefined): void {
     if (!relativePath?.trim()) return;
     const rel = relativePath.replace(/^uploads[\\/]/, '').replace(/^\/+/, '');

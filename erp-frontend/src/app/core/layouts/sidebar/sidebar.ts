@@ -8,6 +8,7 @@ import { filter } from 'rxjs/operators';
 import { LayoutService } from '../../services/layout.service';
 import { PermissionsService } from '../../services/seguridad/permissions.service';
 import { AuthService } from '../../services/auth.service';
+import { SessionContextService } from '../../services/session-context.service';
 import { AlertService } from '../../services/ui/alert.service';
 
 @Component({
@@ -24,6 +25,7 @@ export class Sidebar implements OnInit {
   layoutService = inject(LayoutService);
   perms = inject(PermissionsService);
   private authService = inject(AuthService);
+  private sessionCtx = inject(SessionContextService);
   private alert = inject(AlertService);
   private router = inject(Router);
 
@@ -34,6 +36,7 @@ export class Sidebar implements OnInit {
 
   usuarioActual: any = null;
   logoError = signal(false);
+  readonly ctx = this.sessionCtx;
 
   private rawMenu: any[] = [
     {
@@ -173,6 +176,9 @@ export class Sidebar implements OnInit {
       this.expandActiveGroups();
     });
     this.expandActiveGroups();
+    if (!this.sessionCtx.loaded()) {
+      this.sessionCtx.load();
+    }
   }
 
   filteredMenu = computed(() => {

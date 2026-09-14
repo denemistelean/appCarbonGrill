@@ -51,6 +51,33 @@ npm start
 
 Abrir: `http://localhost:4203`
 
+## Multi-local (varias tiendas / RUC)
+
+Migración adicional (logo por sucursal + snapshot emisor en comprobantes):
+
+```bash
+mysql -u root -p app_carbon_grill < bd/BD_CARBON_GRILL_SUCURSAL_LOGO_SNAPSHOT.sql
+```
+
+Carta visual por local:
+
+```bash
+mysql -u root -p app_carbon_grill < bd/BD_CARBON_GRILL_CARTA_VITRINA_SUCURSAL.sql
+```
+
+Plano personalizable del salón (formas + referencias):
+
+```bash
+mysql -u root -p app_carbon_grill < bd/BD_CARBON_GRILL_SALON_MAPA.sql
+```
+
+Flujo operativo:
+
+1. **SUPERADMIN** crea cada LOCAL en `/admin/sucursales` (RUC, Nubefact, logo, nombre comercial).
+2. En **Personal** (`/admin/personal`) asigna cada usuario CAJA/MOZO a **un solo local** vigente.
+3. Tras el login único, el sidebar y los vouchers muestran la marca del local asignado.
+4. Producción SUNAT: `OSE_MODO=NUBEFACT` con URL/token Nubefact **por sucursal**.
+
 ## Agregar un módulo de dominio
 
 1. Tabla(s) SQL + `sis_modulo` / `sis_accion` / `sis_permiso`

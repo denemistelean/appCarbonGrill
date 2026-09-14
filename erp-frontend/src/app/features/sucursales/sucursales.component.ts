@@ -10,6 +10,8 @@ import { PermissionsService } from 'src/app/core/services/seguridad/permissions.
 import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro.component';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
 import { SucursalesService } from './sucursales.service';
+import { AlertService } from 'src/app/core/services/ui/alert.service';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-sucursales',
@@ -22,7 +24,12 @@ import { SucursalesService } from './sucursales.service';
 export class SucursalesComponent {
   private fb = inject(FormBuilder);
   private baseService = inject(SucursalesService);
+  private alert = inject(AlertService);
   public perms = inject(PermissionsService);
+
+  logoPreview = signal<string | null>(null);
+  logoFile = signal<File | null>(null);
+  uploadsUrl = environment.uploadsUrl;
 
   filtroTipo = signal<'TODOS' | 'LOCAL' | 'ALMACEN'>('TODOS');
 
@@ -77,6 +84,8 @@ export class SucursalesComponent {
 
     this.crud.setupModal(item?.id_sucursal || null);
     this.form.reset({ tipo: 'LOCAL' });
+    this.logoPreview.set(null);
+    this.logoFile.set(null);
 
     if (item) {
       this.baseService.findOne(item.id_sucursal).subscribe({
@@ -100,6 +109,9 @@ export class SucursalesComponent {
             nubefact_url: data.nubefact_url,
             nubefact_token: data.nubefact_token,
           });
+          if (data.logo_path) {
+            this.logoPreview.set(`${this.uploadsUrl}${data.logo_path}`);
+          }
         },
         error: () => this.form.patchValue(item),
       });
@@ -108,12 +120,64 @@ export class SucursalesComponent {
     this.crud.openModal(modalTemplate, { centered: true, backdrop: 'static', size: 'lg' });
   }
 
+  onLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.logoFile.set(file);
+    const reader = new FileReader();
+    reader.onload = () => this.logoPreview.set(String(reader.result || ''));
+    reader.readAsDataURL(file);
+  }
+
+  quitarLogo() {
+    const id = this.crud.editingId();
+    if (id) {
+      this.baseService.removeLogo(id).subscribe({
+        next: () => {
+          this.logoPreview.set(null);
+          this.logoFile.set(null);
+          this.alert.toast('Logo eliminado', 'success');
+        },
+        error: (e) => this.alert.error(e.error?.mensaje || 'No se pudo eliminar el logo'),
+      });
+      return;
+    }
+    this.logoPreview.set(null);
+    this.logoFile.set(null);
+  }
+
+  private subirLogoSiCorresponde(id: number) {
+    const file = this.logoFile();
+    if (!file) return;
+    this.baseService.uploadLogo(id, file).subscribe({
+      next: () => this.crud.refresh(),
+      error: (e) => this.alert.warning(e.error?.mensaje || 'Sucursal guardada, pero falló el logo'),
+    });
+  }
+
   guardar() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.crud.save(this.form.value);
+    const payload = { ...this.form.value };
+    const editingId = this.crud.editingId();
+    const obs = editingId
+      ? this.baseService.update(editingId, payload)
+      : this.baseService.create(payload);
+
+    obs.subscribe({
+      next: (res: any) => {
+        const data = res?.data ?? res;
+        const id = editingId || data?.id_sucursal;
+        if (id) this.subirLogoSiCorresponde(Number(id));
+        this.crud.refresh();
+        this.crud.closeModal();
+        this.alert.toast(editingId ? 'Sucursal actualizada' : 'Sucursal creada', 'success');
+      },
+      error: (e) => this.alert.error(e.error?.mensaje || e.error?.message || 'No se pudo guardar'),
+    });
   }
 }

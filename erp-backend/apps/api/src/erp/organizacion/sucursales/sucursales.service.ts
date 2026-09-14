@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { AuditoriaService } from '@app/common';
+import { AuditoriaService, UploadService } from '@app/common';
 import { DataSource } from 'typeorm';
 import { CreateSucursalDto, UpdateSucursalDto } from './sucursales.dto';
 
@@ -9,6 +9,7 @@ export class SucursalesService {
   constructor(
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
+    private readonly uploadService: UploadService,
   ) {}
 
   async findAll(query: any) {
@@ -35,7 +36,7 @@ export class SucursalesService {
     }
 
     const dataSql = `
-      SELECT id_sucursal, codigo, nombre, direccion, telefono, tipo, ruc, razon_social, nombre_comercial,
+      SELECT id_sucursal, codigo, nombre, direccion, telefono, tipo, ruc, razon_social, nombre_comercial, logo_path,
              ubigeo, departamento, provincia, distrito, direccion_fiscal,
              codigo_establecimiento_sunat, nubefact_url,
              CASE WHEN nubefact_token IS NULL OR nubefact_token = '' THEN 0 ELSE 1 END AS tiene_nubefact,
@@ -57,7 +58,7 @@ export class SucursalesService {
   async findOne(id: number) {
     this.assertId(id);
     const [row] = await this.dataSource.query(
-      `SELECT id_sucursal, codigo, nombre, direccion, telefono, tipo, ruc, razon_social, nombre_comercial,
+      `SELECT id_sucursal, codigo, nombre, direccion, telefono, tipo, ruc, razon_social, nombre_comercial, logo_path,
               ubigeo, departamento, provincia, distrito, direccion_fiscal,
               codigo_establecimiento_sunat, nubefact_url, nubefact_token, estado_registro
        FROM sucursal
@@ -103,6 +104,9 @@ export class SucursalesService {
     this.assertId(id);
     const oldValues = await this.findOne(id);
     const payload = this.normalize({ ...oldValues, ...dto });
+    if (!dto.nubefact_token?.trim()) {
+      payload.nubefact_token = oldValues.nubefact_token;
+    }
 
     const result = await this.dataSource.query(
       `UPDATE sucursal
@@ -156,6 +160,41 @@ export class SucursalesService {
 
     await this.auditoriaService.registrar('sucursal', id, 'ELIMINAR', userId, oldValues, null);
     return { id_sucursal: id };
+  }
+
+  async uploadLogo(id: number, file: Express.Multer.File, userId: number) {
+    this.assertId(id);
+    const oldValues = await this.findOne(id);
+    const logoPath = this.uploadService.saveSucursalLogo(id, file);
+    if (oldValues.logo_path && oldValues.logo_path !== logoPath) {
+      this.uploadService.deleteIfExists(oldValues.logo_path);
+    }
+    await this.dataSource.query(
+      `UPDATE sucursal SET logo_path = ?, id_usuario_mod = ? WHERE id_sucursal = ? AND estado_registro = 'ACTIVO'`,
+      [logoPath, userId, id],
+    );
+    const updated = await this.findOne(id);
+    await this.auditoriaService.registrar('sucursal', id, 'ACTUALIZAR', userId, oldValues, updated);
+    return {
+      id_sucursal: id,
+      logo_path: logoPath,
+      logo_url: `/uploads/${logoPath}`,
+    };
+  }
+
+  async removeLogo(id: number, userId: number) {
+    this.assertId(id);
+    const oldValues = await this.findOne(id);
+    if (oldValues.logo_path) {
+      this.uploadService.deleteIfExists(oldValues.logo_path);
+    }
+    await this.dataSource.query(
+      `UPDATE sucursal SET logo_path = NULL, id_usuario_mod = ? WHERE id_sucursal = ? AND estado_registro = 'ACTIVO'`,
+      [userId, id],
+    );
+    const updated = await this.findOne(id);
+    await this.auditoriaService.registrar('sucursal', id, 'ACTUALIZAR', userId, oldValues, updated);
+    return { id_sucursal: id, logo_path: null, logo_url: null };
   }
 
   private async seedOperacionLocal(idSucursal: number, userId: number) {

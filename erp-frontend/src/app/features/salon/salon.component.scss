@@ -1,10 +1,28 @@
 .mesa-mapa {
   position: relative;
-  background: linear-gradient(180deg, rgba(var(--bs-secondary-rgb), 0.06), transparent);
+  background:
+    linear-gradient(var(--erp-border, #dee2e6) 1px, transparent 1px),
+    linear-gradient(90deg, var(--erp-border, #dee2e6) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(var(--bs-secondary-rgb), 0.06), transparent);
+  background-size: 5% 5%, 5% 5%, auto;
   border: 1px dashed var(--erp-border, #dee2e6);
   border-radius: var(--erp-radius, 12px);
   overflow: hidden;
-  padding: 72px 52px 80px;
+  padding: 12px;
+}
+
+.mesa-mapa.editando-plano {
+  border-color: #0dcaf0;
+  padding: 0;
+}
+
+.mesa-mapa.dibujando {
+  cursor: crosshair;
+}
+
+.mesa-mapa.dibujando .mesa-card,
+.mesa-mapa.dibujando .mapa-landmark {
+  pointer-events: none;
 }
 
 .mesa-mapa-canvas {
@@ -14,8 +32,78 @@
   height: 56vh;
 }
 
+.room-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.room-outline .room-fill {
+  fill: rgba(255, 255, 255, 0.55);
+  stroke: #1c2b33;
+  stroke-width: 0.6;
+}
+
+.room-outline .vertex {
+  fill: #c98a2c;
+  stroke: #1c2b33;
+  stroke-width: 0.3;
+}
+
+.mapa-landmark {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 52px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #2b2e33;
+  color: #f7f7f4;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  user-select: none;
+  pointer-events: none;
+}
+
+.mapa-landmark i {
+  font-size: 16px;
+}
+
+.mapa-landmark.editable {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.mapa-landmark .landmark-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: #a4442f;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .mesa-card {
   position: absolute;
+  z-index: 3;
   min-width: 88px;
   min-height: 72px;
   padding: 0.65rem 0.75rem;
@@ -68,6 +156,29 @@
 }
 
 @media (max-width: 575px) {
-  .mesa-mapa { padding: 56px 24px 64px; }
+  .mesa-mapa { padding: 8px; }
+  .mesa-mapa.editando-plano { padding: 0; }
   .mesa-mapa-canvas { height: 62vh; }
+}
+
+/* ---- Modo tablet mozo ---- */
+.salon-tablet {
+  max-width: none !important;
+  padding: 0.5rem !important;
+}
+
+.salon-tablet .mesa-mapa-canvas {
+  min-height: 62vh;
+  height: calc(100vh - 180px);
+}
+
+.salon-tablet .mesa-card {
+  min-width: 88px;
+  min-height: 76px;
+  font-size: 0.95rem;
+  touch-action: manipulation;
+}
+
+.salon-tablet .card-pro {
+  border-radius: 14px;
 }

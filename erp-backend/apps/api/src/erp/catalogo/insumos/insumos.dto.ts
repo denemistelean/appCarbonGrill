@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsNumber, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateInsumoDto {
   @IsString()
@@ -17,6 +17,12 @@ export class CreateInsumoDto {
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   costo_unitario!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  precio_venta?: number;
 }
 
 export class UpdateInsumoDto extends PartialType(CreateInsumoDto) {}

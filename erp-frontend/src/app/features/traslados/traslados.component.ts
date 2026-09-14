@@ -10,6 +10,7 @@ import { AlertService } from 'src/app/core/services/ui/alert.service';
 import { TableProComponent } from 'src/app/shared/components/table-pro/table-pro.component';
 import { FormErrorComponent } from 'src/app/shared/components/form-error/form-error.component';
 import { ErpTabsComponent, ErpTab } from 'src/app/shared/components/erp-tabs/erp-tabs.component';
+import { NumberFieldComponent } from 'src/app/shared/components/number-field/number-field.component';
 import { InventarioService } from '../inventario/inventario.service';
 import { TrasladosHttpService } from './traslados.service';
 
@@ -29,6 +30,7 @@ type TabTraslado = 'lista' | 'nuevo';
     TableProComponent,
     FormErrorComponent,
     ErpTabsComponent,
+    NumberFieldComponent,
   ],
   templateUrl: './traslados.component.html',
   styleUrls: ['./traslados.component.scss'],
@@ -48,6 +50,7 @@ export class TrasladosComponent implements OnInit {
 
   almacenes = signal<any[]>([]);
   locales = signal<any[]>([]);
+  localesDestino = signal<any[]>([]);
   insumos = signal<any[]>([]);
   tipos = signal<any[]>([]);
   estados = signal<string[]>([]);
@@ -105,6 +108,7 @@ export class TrasladosComponent implements OnInit {
         this.insumos.set(data.insumos || []);
         this.tipos.set(data.tipos || []);
         this.estados.set(data.estados || []);
+        this.actualizarLocalesDestino();
       },
       error: () => this.alert.error('No se pudieron cargar catálogos de traslados.'),
     });
@@ -137,11 +141,26 @@ export class TrasladosComponent implements OnInit {
 
   onTipoChange() {
     this.form.patchValue({ id_origen: null, id_destino: null });
+    this.actualizarLocalesDestino();
     this.refrescarStockItems();
   }
 
   onOrigenChange() {
+    const idOrigen = Number(this.form.get('id_origen')?.value || 0);
+    const idDestino = Number(this.form.get('id_destino')?.value || 0);
+    if (idOrigen && idOrigen === idDestino) {
+      this.form.patchValue({ id_destino: null });
+    }
+    this.actualizarLocalesDestino();
     this.refrescarStockItems();
+  }
+
+  private actualizarLocalesDestino() {
+    const idOrigen = Number(this.form.get('id_origen')?.value || 0);
+    const list = idOrigen
+      ? this.locales().filter((l) => Number(l.id_sucursal) !== idOrigen)
+      : this.locales();
+    this.localesDestino.set(list);
   }
 
   refrescarStockItems() {
@@ -187,7 +206,7 @@ export class TrasladosComponent implements OnInit {
     this.itemsArray.push(
       this.fb.group({
         id_insumo: [null as number | null, Validators.required],
-        cantidad_enviada: [1, [Validators.required, Validators.min(0.0001)]],
+        cantidad_enviada: [1, [Validators.required, Validators.min(1)]],
         id_lote_origen: [null as number | null],
         stock_origen: [null as number | null],
       }),
@@ -271,7 +290,7 @@ export class TrasladosComponent implements OnInit {
               insumo: it.insumo,
               unidad_codigo: it.unidad_codigo,
               cantidad_enviada: Number(it.cantidad_enviada),
-              cantidad_recibida: Number(it.cantidad_enviada),
+              cantidad_recibida: Math.round(Number(it.cantidad_enviada)),
               motivo_diferencia: 'MERMA_TRANSPORTE',
               detalle_diferencia: '',
             })),
@@ -302,8 +321,9 @@ export class TrasladosComponent implements OnInit {
           id_insumo: f.id_insumo,
           insumo: f.insumo,
           unidad_codigo: f.unidad_codigo,
-          cantidad: f.faltante,
-          costo_unitario: Number(ins?.costo_unitario || 0),
+          cantidad: Math.max(1, Math.ceil(f.faltante)),
+          precio_costo: Number(ins?.costo_unitario || 0),
+          precio_venta: Number(ins?.precio_venta || 0),
         });
       }
     } else {
@@ -318,8 +338,9 @@ export class TrasladosComponent implements OnInit {
           id_insumo: idInsumo,
           insumo: ins?.nombre || ins?.etiqueta || 'Insumo',
           unidad_codigo: ins?.unidad_codigo || '',
-          cantidad: Math.max(0.0001, cant - stock),
-          costo_unitario: Number(ins?.costo_unitario || 0),
+          cantidad: Math.max(1, Math.ceil(cant - stock)),
+          precio_costo: Number(ins?.costo_unitario || 0),
+          precio_venta: Number(ins?.precio_venta || 0),
         });
       });
     }
@@ -355,8 +376,9 @@ export class TrasladosComponent implements OnInit {
         detalle: 'Ingreso rápido desde traslados',
         items: items.map((it) => ({
           id_insumo: it.id_insumo,
-          cantidad: Number(it.cantidad),
-          costo_unitario: Number(it.costo_unitario),
+          cantidad: Math.round(Number(it.cantidad)),
+          costo_unitario: Number(it.precio_costo ?? 0),
+          precio_venta: it.precio_venta != null && it.precio_venta !== '' ? Number(it.precio_venta) : undefined,
         })),
       })
       .pipe(finalize(() => this.guardandoIngreso.set(false)))
@@ -439,7 +461,7 @@ export class TrasladosComponent implements OnInit {
     this.service
       .recibir(this.detalle()!.id_traslado, items.map((it) => ({
         id_traslado_item: it.id_traslado_item,
-        cantidad_recibida: it.cantidad_recibida,
+        cantidad_recibida: Math.round(Number(it.cantidad_recibida)),
         motivo_diferencia: it.cantidad_recibida < it.cantidad_enviada ? it.motivo_diferencia : undefined,
         detalle_diferencia: it.detalle_diferencia || undefined,
       })))

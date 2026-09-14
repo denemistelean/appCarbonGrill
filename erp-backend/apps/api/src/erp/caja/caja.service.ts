@@ -9,6 +9,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { AuditoriaService } from '@app/common';
 import { DataSource, QueryRunner } from 'typeorm';
 import { RequestUser } from '../../common/auth/request-user.interface';
+import { AlcanceService } from '../../common/auth/alcance.service';
 import { CartaService } from '../carta/carta.service';
 import { AbrirTurnoDto, CerrarTurnoDto, CobrarDto, CobroMedioDto } from './caja.dto';
 
@@ -20,6 +21,7 @@ export class CajaService {
     @InjectDataSource('APP_DB_CONN') private readonly dataSource: DataSource,
     private readonly auditoriaService: AuditoriaService,
     private readonly cartaService: CartaService,
+    private readonly alcanceService: AlcanceService,
   ) {}
 
   catalogos() {
@@ -39,7 +41,7 @@ export class CajaService {
   }
 
   async listaSucursales(user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const params: any[] = [];
     let where = `WHERE s.estado_registro = 'ACTIVO' AND s.tipo = 'LOCAL'`;
     if (!alcance.esSuperadmin) {
@@ -54,7 +56,7 @@ export class CajaService {
 
   async turnoActual(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     const [turno] = await this.dataSource.query(
       `SELECT t.id_turno, t.id_sucursal, s.nombre AS sucursal, t.id_cajero,
@@ -73,7 +75,7 @@ export class CajaService {
   }
 
   async abrirTurno(dto: AbrirTurnoDto, user: RequestUser) {
-    await this.assertAccesoSucursal(dto.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(dto.id_sucursal, user);
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -118,7 +120,7 @@ export class CajaService {
         [id],
       );
       if (!turno) throw new NotFoundException('Turno no encontrado');
-      await this.assertAccesoSucursal(turno.id_sucursal, user);
+      await this.alcanceService.assertAccesoSucursal(turno.id_sucursal, user);
       if (turno.estado !== 'ABIERTO') throw new ConflictException('El turno ya está cerrado');
 
       const resumen = await this.resumenTurnoInternal(id, qr);
@@ -150,11 +152,11 @@ export class CajaService {
 
   async historialTurnos(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['page', 'limit', 'id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const page = this.toPositiveNumber(query.page, 1);
     const limit = Math.min(this.toPositiveNumber(query.limit, 10), 100);
     const offset = (page - 1) * limit;
-    const idSucursal = this.forzarSucursal(query.id_sucursal, alcance);
+    const idSucursal = this.alcanceService.forzarSucursal(query.id_sucursal, alcance);
     const params: any[] = [];
     let where = `WHERE t.estado_registro = 'ACTIVO'`;
     if (idSucursal) {
@@ -199,7 +201,7 @@ export class CajaService {
       [id],
     );
     if (!turno) throw new NotFoundException('Turno no encontrado');
-    await this.assertAccesoSucursal(turno.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(turno.id_sucursal, user);
     const resumen = await this.resumenTurnoInternal(id);
     const cobros = await this.dataSource.query(
       `SELECT cob.id_cobro, cob.monto, cob.modo, cob.fecha_cobro, cob.estado,
@@ -216,7 +218,7 @@ export class CajaService {
 
   async pendientes(query: any, user: RequestUser) {
     this.assertQueryScalars(query, ['id_sucursal']);
-    const alcance = await this.resolverAlcance(user);
+    const alcance = await this.alcanceService.resolverAlcance(user);
     const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
     const rows = await this.dataSource.query(
       `SELECT p.id_pedido, p.id_mesa, m.numero AS mesa, m.estado AS estado_mesa,
@@ -238,10 +240,50 @@ export class CajaService {
     }));
   }
 
+  /** Cuentas cobradas (hoy/recientes) sin boleta/factura electrónica — para reemitir. */
+  async sinComprobante(query: any, user: RequestUser) {
+    this.assertQueryScalars(query, ['id_sucursal']);
+    const alcance = await this.alcanceService.resolverAlcance(user);
+    const idSucursal = this.exigirSucursal(query.id_sucursal, alcance);
+    const rows = await this.dataSource.query(
+      `SELECT c.id_cuenta, c.id_pedido, c.estado AS estado_cuenta, c.total, c.pagado,
+              p.id_mesa, m.numero AS mesa, p.estado AS estado_pedido, p.fecha_confirma,
+              CONCAT(u.nombres, ' ', u.apellidos) AS mozo,
+              (SELECT MAX(cob.fecha_cobro) FROM cobro cob
+               WHERE cob.id_cuenta = c.id_cuenta AND cob.estado_registro = 'ACTIVO') AS fecha_cobro
+       FROM cuenta c
+       INNER JOIN pedido p ON p.id_pedido = c.id_pedido
+       INNER JOIN mesa m ON m.id_mesa = p.id_mesa
+       INNER JOIN sis_usuario u ON u.id_usuario = p.id_mozo
+       WHERE c.id_sucursal = ?
+         AND c.estado_registro = 'ACTIVO'
+         AND c.estado IN ('PAGADA', 'PARCIAL')
+         AND EXISTS (
+           SELECT 1 FROM cobro cob
+           WHERE cob.id_cuenta = c.id_cuenta AND cob.estado_registro = 'ACTIVO'
+             AND cob.fecha_cobro >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM comprobante cp
+           WHERE cp.id_cuenta = c.id_cuenta
+             AND cp.estado_registro = 'ACTIVO'
+             AND cp.tipo IN ('01', '03')
+             AND cp.estado <> 'ANULADO'
+         )
+       ORDER BY c.id_cuenta DESC
+       LIMIT 40`,
+      [idSucursal],
+    );
+    return rows.map((r: any) => ({
+      ...r,
+      saldo: this.round2(Number(r.total) - Number(r.pagado || 0)),
+    }));
+  }
+
   async detalleCuenta(idPedido: number, user: RequestUser) {
     this.assertId(idPedido);
     const pedido = await this.obtenerPedido(idPedido);
-    await this.assertAccesoSucursal(pedido.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(pedido.id_sucursal, user);
     const cuenta = await this.asegurarCuenta(idPedido, user.idUsuario, null);
     const items = await this.dataSource.query(
       `SELECT ci.id_cuenta_item, ci.id_pedido_item, ci.monto, ci.estado,
@@ -282,11 +324,17 @@ export class CajaService {
       acc[k].push(row);
       return acc;
     }, {});
+    const [comp] = await this.dataSource.query(
+      `SELECT COUNT(*) AS n FROM comprobante
+       WHERE id_cuenta = ? AND estado_registro = 'ACTIVO' AND tipo IN ('01','03') AND estado <> 'ANULADO'`,
+      [cuenta.id_cuenta],
+    );
     return {
       pedido,
       cuenta: {
         ...cuenta,
         saldo: this.round2(Number(cuenta.total) - Number(cuenta.pagado)),
+        tiene_comprobante_electronico: Number(comp?.n || 0) > 0,
       },
       items,
       partes,
@@ -297,7 +345,7 @@ export class CajaService {
   async pedirCuenta(idPedido: number, user: RequestUser) {
     this.assertId(idPedido);
     const pedido = await this.obtenerPedido(idPedido);
-    await this.assertAccesoSucursal(pedido.id_sucursal, user);
+    await this.alcanceService.assertAccesoSucursal(pedido.id_sucursal, user);
     if (['PENDIENTE_CONFIRMACION', 'ANULADO', 'PAGADO'].includes(pedido.estado)) {
       throw new ConflictException('Este pedido no puede pedir cuenta');
     }
@@ -315,7 +363,6 @@ export class CajaService {
 
   async precuentaHtml(idPedido: number, user: RequestUser) {
     const det = await this.detalleCuenta(idPedido, user);
-    const suc = det.pedido.sucursal;
     const mesa = det.pedido.mesa;
     const filas = det.items
       .map(
@@ -329,26 +376,24 @@ export class CajaService {
     return `<!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-  body { font-family: Arial, sans-serif; font-size: 12px; margin: 8px; color: #111; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  .m { color: #555; margin-bottom: 8px; }
+  body { font-family: 'Courier New', Courier, monospace; font-size: 12px; margin: 10px; color: #000; }
+  .titulo { text-align: center; font-size: 15px; font-weight: bold; letter-spacing: 1px; margin: 8px 0 14px; }
+  .meta { text-align: center; font-size: 11px; margin-bottom: 10px; }
   table { width: 100%; border-collapse: collapse; }
-  td { padding: 3px 0; vertical-align: top; }
+  td { padding: 4px 0; vertical-align: top; }
   .r { text-align: right; white-space: nowrap; }
-  .n { font-size: 10px; color: #666; }
-  .tot { border-top: 1px dashed #000; font-weight: bold; font-size: 14px; }
-  .foot { margin-top: 10px; font-size: 10px; text-align: center; }
+  .n { font-size: 10px; }
+  .tot { border-top: 1px dashed #000; font-weight: bold; padding-top: 6px; }
 </style></head>
 <body>
-  <h1>PRE-CUENTA</h1>
-  <div class="m">${this.esc(suc)} · Mesa ${this.esc(mesa)}<br>Pedido #${det.pedido.id_pedido}</div>
+  <div class="titulo">****PRE CUENTA****</div>
+  <div class="meta">Mesa ${this.esc(mesa)} · Pedido #${det.pedido.id_pedido}</div>
   <table>
     ${filas}
     <tr class="tot"><td>TOTAL</td><td class="r">S/ ${this.money(det.cuenta.total)}</td></tr>
     ${Number(det.cuenta.pagado) > 0 ? `<tr><td>Pagado</td><td class="r">S/ ${this.money(det.cuenta.pagado)}</td></tr>
     <tr class="tot"><td>SALDO</td><td class="r">S/ ${this.money(det.cuenta.saldo)}</td></tr>` : ''}
   </table>
-  <div class="foot">Documento interno — no es comprobante SUNAT</div>
 </body></html>`;
   }
 
@@ -366,7 +411,7 @@ export class CajaService {
         [dto.id_pedido],
       );
       if (!pedido) throw new NotFoundException('Pedido no encontrado');
-      await this.assertAccesoSucursal(pedido.id_sucursal, user);
+      await this.alcanceService.assertAccesoSucursal(pedido.id_sucursal, user);
       if (['PENDIENTE_CONFIRMACION', 'ANULADO', 'PAGADO'].includes(pedido.estado)) {
         throw new ConflictException('El pedido no está listo para cobro');
       }
@@ -678,51 +723,10 @@ export class CajaService {
     }
   }
 
-  private async assertAccesoSucursal(idSucursal: number, user: RequestUser) {
-    const alcance = await this.resolverAlcance(user);
-    this.assertSucursalPermitida(idSucursal, alcance);
-  }
-
-  private async resolverAlcance(user: RequestUser): Promise<AlcanceSucursal> {
-    const [rol] = await this.dataSource.query(`SELECT nombre FROM sis_rol WHERE id_rol = ? LIMIT 1`, [user.idRol]);
-    const nombre = String(rol?.nombre || '');
-    const esSuperadmin = nombre === 'SUPERADMIN';
-    if (esSuperadmin) return { esSuperadmin: true, idSucursal: null, rol: nombre };
-    const [asig] = await this.dataSource.query(
-      `SELECT a.id_sucursal FROM sucursal_asignacion a
-       INNER JOIN sucursal s ON s.id_sucursal = a.id_sucursal
-       WHERE a.id_usuario = ? AND a.estado_registro = 'ACTIVO' AND a.vigente_hasta IS NULL AND s.estado_registro = 'ACTIVO'
-       ORDER BY a.id_asignacion DESC LIMIT 1`,
-      [user.idUsuario],
-    );
-    const idSucursal = Number(asig?.id_sucursal || 0);
-    if (!idSucursal) throw new ForbiddenException('Usuario sin sucursal asignada');
-    return { esSuperadmin: false, idSucursal, rol: nombre };
-  }
-
   private exigirSucursal(raw: any, alcance: AlcanceSucursal): number {
-    const id = this.forzarSucursal(raw, alcance);
+    const id = this.alcanceService.forzarSucursal(raw, alcance);
     if (!id) throw new BadRequestException('Debe indicar la sucursal');
     return id;
-  }
-
-  private forzarSucursal(raw: any, alcance: AlcanceSucursal): number | null {
-    if (!alcance.esSuperadmin) {
-      if (raw != null && raw !== '' && Number(raw) !== alcance.idSucursal) {
-        throw new ForbiddenException('No puede consultar otra sucursal');
-      }
-      return alcance.idSucursal;
-    }
-    if (raw == null || raw === '') return null;
-    const n = Number(raw);
-    if (!n || Number.isNaN(n)) throw new BadRequestException('Sucursal inválida');
-    return n;
-  }
-
-  private assertSucursalPermitida(idSucursal: number, alcance: AlcanceSucursal) {
-    if (!alcance.esSuperadmin && Number(idSucursal) !== alcance.idSucursal) {
-      throw new ForbiddenException('No puede operar otra sucursal');
-    }
   }
 
   private assertQueryScalars(query: any, keys: string[]) {

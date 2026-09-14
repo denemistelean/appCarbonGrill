@@ -1,28 +1,37 @@
-﻿<div class="d-flex w-100 h-100 overflow-hidden">
-  
-  <app-sidebar></app-sidebar>
-  <app-settings-panel></app-settings-panel>
+﻿<div class="d-flex w-100 h-100 overflow-hidden" [class.layout-tablet]="esTablet">
+
+  @if (!esTablet) {
+    <app-sidebar></app-sidebar>
+    <app-settings-panel></app-settings-panel>
+  }
   <app-toast></app-toast>
-  
+
   @if (layoutService.isLoading()) {
     <div class="global-top-progress-bar"></div>
   }
 
   <div class="layout-main-content flex-grow-1 d-flex flex-column h-100">
 
-    <nav class="app-navbar navbar px-4 py-3 d-flex justify-content-between flex-shrink-0">
-      <div class="d-flex align-items-center gap-3">
-        <button class="btn btn-soft-neutral btn-icon"
-                (click)="layoutService.toggleSidebar()">
-          <i class="bi bi-list fs-5"></i>
-        </button>
-
-        <h5 class="m-0 fw-bold unselectable text-main navbar-title">
-          Sistema de Gestión
-        </h5>
+    <nav class="app-navbar navbar px-3 px-md-4 py-2 d-flex justify-content-between flex-shrink-0"
+         [class.app-navbar-tablet]="esTablet">
+      <div class="d-flex align-items-center gap-2 gap-md-3">
+        @if (!esTablet) {
+          <button class="btn btn-soft-neutral btn-icon"
+                  (click)="layoutService.toggleSidebar()">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+        }
+        <div>
+          <h5 class="m-0 fw-bold unselectable text-main navbar-title">
+            {{ esTablet ? sessionContext.nombreMarca() : 'Sistema de Gestión' }}
+          </h5>
+          @if (esTablet) {
+            <div class="text-muted-erp text-xs-erp">{{ sessionContext.nombreRol() }} · {{ usuarioLabel }}</div>
+          }
+        </div>
       </div>
 
-      <div class="d-flex gap-3 align-items-center">
+      <div class="d-flex gap-2 gap-md-3 align-items-center">
         <div ngbDropdown container="body" placement="bottom-end">
           <button type="button" class="btn btn-soft-neutral btn-sm d-flex align-items-center gap-2" ngbDropdownToggle>
             <i class="bi bi-person-circle"></i>
@@ -38,16 +47,42 @@
             </button>
           </div>
         </div>
-        <button class="btn btn-soft-neutral btn-icon rounded-circle"
-                (click)="layoutService.toggleSettings()">
-          <i class="bi bi-gear-fill"></i>
-        </button>
+        @if (!esTablet) {
+          <button class="btn btn-soft-neutral btn-icon rounded-circle"
+                  (click)="layoutService.toggleSettings()">
+            <i class="bi bi-gear-fill"></i>
+          </button>
+        }
       </div>
     </nav>
 
-    <main class="flex-grow-1 overflow-auto p-4 custom-scroll">
+    <main class="flex-grow-1 overflow-auto custom-scroll"
+          [class.p-4]="!esTablet"
+          [class.p-2]="esTablet"
+          [class.p-md-3]="esTablet">
       <router-outlet></router-outlet>
     </main>
+
+    @if (esTablet) {
+      <nav class="tablet-bottom-nav">
+        @if (sessionContext.nombreRol() === 'MOZO') {
+          <a routerLink="/salon" routerLinkActive="active" class="tablet-nav-item">
+            <i class="bi bi-grid-3x3-gap"></i><span>Mesas</span>
+          </a>
+          <a routerLink="/comandero" routerLinkActive="active" class="tablet-nav-item">
+            <i class="bi bi-journal-check"></i><span>Pedido</span>
+          </a>
+        }
+        @if (sessionContext.nombreRol() === 'COCINA' || sessionContext.nombreRol() === 'BAR') {
+          <a routerLink="/kds" routerLinkActive="active" class="tablet-nav-item">
+            <i class="bi bi-fire"></i><span>Preparación</span>
+          </a>
+        }
+        <button type="button" class="tablet-nav-item" (click)="cerrarSesion()">
+          <i class="bi bi-box-arrow-right"></i><span>Salir</span>
+        </button>
+      </nav>
+    }
 
   </div>
 </div>

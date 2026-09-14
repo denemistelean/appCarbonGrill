@@ -88,8 +88,14 @@
                             <app-form-error [control]="form.get('id_origen')"></app-form-error>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Destino (local) <span class="req-star">*</span></label>
-                            <ng-select class="ng-select-sm" [items]="locales()" bindLabel="nombre" bindValue="id_sucursal"
+                            <label class="form-label">
+                                @if (form.get('tipo')?.value === 'TRANSFERENCIA') {
+                                    Destino <span class="req-star">*</span>
+                                } @else {
+                                    Destino (local) <span class="req-star">*</span>
+                                }
+                            </label>
+                            <ng-select class="ng-select-sm" [items]="localesDestino()" bindLabel="nombre" bindValue="id_sucursal"
                                        formControlName="id_destino" placeholder="Seleccione..." appendTo="body"
                                        [searchable]="true" [clearable]="true">
                             </ng-select>
@@ -104,32 +110,38 @@
                     <h6 class="fw-bold text-erp mb-3">Insumos a trasladar</h6>
                     <div formArrayName="items">
                         @for (item of itemsArray.controls; track $index; let i = $index) {
-                            <div class="row g-3 align-items-end mb-2" [formGroupName]="i">
-                                <div class="col-md-5">
-                                    <label class="form-label">Insumo <span class="req-star">*</span></label>
-                                    <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
-                                               formControlName="id_insumo" placeholder="Buscar..." appendTo="body"
-                                               [searchable]="true" [clearable]="true" (change)="onInsumoOrigenChange(i)">
-                                    </ng-select>
+                            <div class="traslado-item-block mb-3 pb-2" [formGroupName]="i">
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-6 col-lg-7">
+                                        <label class="form-label">Insumo <span class="req-star">*</span></label>
+                                        <ng-select class="ng-select-sm" [items]="insumos()" bindLabel="etiqueta" bindValue="id_insumo"
+                                                   formControlName="id_insumo" placeholder="Buscar..." appendTo="body"
+                                                   [searchable]="true" [clearable]="true" (change)="onInsumoOrigenChange(i)">
+                                        </ng-select>
+                                    </div>
+                                    <div class="col-md-4 col-lg-3">
+                                        <label class="form-label">Cantidad <span class="req-star">*</span></label>
+                                        <app-number-field formControlName="cantidad_enviada" mode="quantity" [min]="1"
+                                                          [class.is-invalid]="itemSinStock(i)"></app-number-field>
+                                    </div>
+                                    <div class="col-md-2 col-lg-2 text-end">
+                                        @if (itemsArray.length > 1) {
+                                            <button type="button" class="btn btn-soft-neutral btn-sm" (click)="quitarItem(i)">Quitar</button>
+                                        }
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Cantidad <span class="req-star">*</span></label>
-                                    <input type="number" min="0.0001" step="0.0001" class="form-control" formControlName="cantidad_enviada"
-                                           [class.is-invalid]="itemSinStock(i)">
-                                    @if (item.get('stock_origen')?.value != null) {
+                                @if (item.get('stock_origen')?.value != null) {
+                                    <div class="traslado-stock-hint mt-1">
                                         <small [class.text-danger]="itemSinStock(i)" [class.text-muted-erp]="!itemSinStock(i)">
-                                            Stock en origen: {{ item.get('stock_origen')?.value | number:'1.2-4' }}
+                                            Stock en origen: <strong>{{ item.get('stock_origen')?.value | number:'1.0-0' }}</strong>
                                             @if (itemSinStock(i)) { · insuficiente }
                                         </small>
-                                    } @else if (form.get('id_origen')?.value) {
+                                    </div>
+                                } @else if (form.get('id_origen')?.value) {
+                                    <div class="traslado-stock-hint mt-1">
                                         <small class="text-muted-erp">Seleccione insumo para ver stock</small>
-                                    }
-                                </div>
-                                <div class="col-md-2 text-end">
-                                    @if (itemsArray.length > 1) {
-                                        <button type="button" class="btn btn-soft-neutral btn-sm" (click)="quitarItem(i)">Quitar</button>
-                                    }
-                                </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
@@ -273,10 +285,10 @@
                     <div class="card-pro p-3 mb-2">
                         <div class="fw-bold mb-2">{{ it.insumo }} (enviado: {{ it.cantidad_enviada | number:'1.2-4' }} {{ it.unidad_codigo }})</div>
                         <div class="row g-2">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Cantidad recibida</label>
-                                <input type="number" class="form-control" min="0" [max]="it.cantidad_enviada" step="0.0001"
-                                       [(ngModel)]="recepcionItems()[i].cantidad_recibida">
+                                <app-number-field mode="quantity" [min]="0" [max]="it.cantidad_enviada" [alignEnd]="true"
+                                                  [(ngModel)]="recepcionItems()[i].cantidad_recibida"></app-number-field>
                             </div>
                             @if (it.cantidad_recibida < it.cantidad_enviada) {
                                 <div class="col-md-4">
@@ -339,8 +351,9 @@
                 <thead class="text-muted text-uppercase">
                     <tr>
                         <th>Insumo</th>
-                        <th class="text-end" style="width:140px">Cantidad</th>
-                        <th class="text-end" style="width:140px">Costo unit.</th>
+                        <th class="text-end" style="width:110px">Cantidad</th>
+                        <th class="text-end" style="width:120px">Precio costo</th>
+                        <th class="text-end" style="width:120px">Precio venta</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -351,12 +364,16 @@
                                 <small class="text-muted-erp">{{ it.unidad_codigo }}</small>
                             </td>
                             <td>
-                                <input type="number" class="form-control form-control-sm text-end" min="0.0001" step="0.0001"
-                                       [(ngModel)]="ingresoRapidoItems()[i].cantidad">
+                                <app-number-field mode="quantity" [min]="1" size="sm" [alignEnd]="true"
+                                                  [(ngModel)]="ingresoRapidoItems()[i].cantidad"></app-number-field>
                             </td>
                             <td>
-                                <input type="number" class="form-control form-control-sm text-end" min="0" step="0.0001"
-                                       [(ngModel)]="ingresoRapidoItems()[i].costo_unitario">
+                                <app-number-field mode="price" size="sm" [alignEnd]="true"
+                                                  [(ngModel)]="ingresoRapidoItems()[i].precio_costo"></app-number-field>
+                            </td>
+                            <td>
+                                <app-number-field mode="price" size="sm" [alignEnd]="true"
+                                                  [(ngModel)]="ingresoRapidoItems()[i].precio_venta"></app-number-field>
                             </td>
                         </tr>
                     }

@@ -46,6 +46,12 @@ export class CajaHttpService {
     });
   }
 
+  sinComprobante(idSucursal: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/sin-comprobante`, {
+      params: new HttpParams().set('id_sucursal', String(idSucursal)),
+    });
+  }
+
   cuenta(idPedido: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/cuentas/${idPedido}`);
   }
